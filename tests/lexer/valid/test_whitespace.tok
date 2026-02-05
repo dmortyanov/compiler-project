@@ -1,0 +1,5 @@
+1:1 KW_INT "int"
+1:5 IDENTIFIER "value"
+2:3 KW_RETURN "return"
+2:10 IDENTIFIER "value"
+2:15 END_OF_FILE ""

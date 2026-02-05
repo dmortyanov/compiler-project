@@ -1,0 +1,6 @@
+C:/school/priklad/6sem/compiler-project/build/CMakeFiles/compiler_core.dir
+C:/school/priklad/6sem/compiler-project/build/CMakeFiles/compiler.dir
+C:/school/priklad/6sem/compiler-project/build/CMakeFiles/lexer_test_runner.dir
+C:/school/priklad/6sem/compiler-project/build/CMakeFiles/RUN_TESTS.dir
+C:/school/priklad/6sem/compiler-project/build/CMakeFiles/ALL_BUILD.dir
+C:/school/priklad/6sem/compiler-project/build/CMakeFiles/ZERO_CHECK.dir

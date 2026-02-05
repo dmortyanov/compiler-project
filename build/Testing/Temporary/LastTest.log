@@ -1,0 +1,49 @@
+Start testing: Feb 05 11:42 RTZ 2 (çèìà)
+----------------------------------------------------------
+1/1 Testing: lexer_tests
+1/1 Test: lexer_tests
+Command: "C:/school/priklad/6sem/compiler-project/build/Debug/lexer_test_runner.exe" "C:/school/priklad/6sem/compiler-project/tests/lexer/valid" "C:/school/priklad/6sem/compiler-project/tests/lexer/invalid"
+Directory: C:/school/priklad/6sem/compiler-project/build
+"lexer_tests" start time: Feb 05 11:42 RTZ 2 (çèìà)
+Output:
+----------------------------------------------------------
+[PASS] test_array.src
+[PASS] test_assignment.src
+[PASS] test_bool.src
+[PASS] test_comments.src
+[PASS] test_comment_only.src
+[PASS] test_delimiters.src
+[PASS] test_empty.src
+[PASS] test_fn_decl.src
+[PASS] test_identifiers.src
+[PASS] test_keywords.src
+[PASS] test_literals_mix.src
+[PASS] test_logical.src
+[PASS] test_long_identifier.src
+[PASS] test_multiline_positions.src
+[PASS] test_numbers.src
+[PASS] test_operators.src
+[PASS] test_relational.src
+[PASS] test_string.src
+[PASS] test_struct.src
+[PASS] test_void_fn.src
+[PASS] test_whitespace.src
+[PASS] test_invalid_and.src
+[PASS] test_invalid_char.src
+[PASS] test_invalid_hash.src
+[PASS] test_invalid_or.src
+[PASS] test_invalid_start_underscore.src
+[PASS] test_malformed_number.src
+[PASS] test_number_out_of_range.src
+[PASS] test_unterminated_comment.src
+[PASS] test_unterminated_string.src
+[PASS] test_unterminated_string_newline.src
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"lexer_tests" end time: Feb 05 11:42 RTZ 2 (çèìà)
+"lexer_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Feb 05 11:42 RTZ 2 (çèìà)
