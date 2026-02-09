@@ -6,6 +6,7 @@
 
 #include "lexer/scanner.h"
 #include "lexer/token.h"
+#include "preprocessor/preprocessor.h"
 #include "utils/file_utils.h"
 
 namespace fs = std::filesystem;
@@ -63,7 +64,9 @@ static bool compare_text(const std::string& expected, const std::string& actual,
 
 static bool run_test_file(const fs::path& src_path) {
     std::string source = utils::read_file(src_path.string());
-    Scanner scanner(source);
+    Preprocessor preprocessor(source);
+    std::string processed = preprocessor.process();
+    Scanner scanner(processed);
 
     std::string tokens_out;
     while (true) {
@@ -76,6 +79,11 @@ static bool run_test_file(const fs::path& src_path) {
     }
 
     std::string errors_out;
+    for (const auto& err : preprocessor.errors()) {
+        errors_out += std::to_string(err.line) + ":" +
+                      std::to_string(err.column) + " ERROR " + err.message +
+                      "\n";
+    }
     for (const auto& err : scanner.errors()) {
         errors_out += std::to_string(err.line) + ":" +
                       std::to_string(err.column) + " ERROR " + err.message +

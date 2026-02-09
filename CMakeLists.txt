@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(compiler_core
     src/lexer/token.cpp
     src/lexer/scanner.cpp
+    src/preprocessor/preprocessor.cpp
     src/utils/file_utils.cpp
 )
 target_include_directories(compiler_core PUBLIC src)

@@ -4,6 +4,7 @@
 
 #include "lexer/scanner.h"
 #include "lexer/token.h"
+#include "preprocessor/preprocessor.h"
 
 static void print_usage() {
     std::cout << "Usage:\n"
@@ -46,7 +47,15 @@ int main(int argc, char** argv) {
     std::string source((std::istreambuf_iterator<char>(in)),
                        std::istreambuf_iterator<char>());
 
-    Scanner scanner(source);
+    Preprocessor preprocessor(source);
+    std::string processed = preprocessor.process();
+
+    for (const auto& err : preprocessor.errors()) {
+        std::cerr << err.line << ":" << err.column << " ERROR "
+                  << err.message << "\n";
+    }
+
+    Scanner scanner(processed);
     std::string output;
     while (true) {
         Token token = scanner.next_token();

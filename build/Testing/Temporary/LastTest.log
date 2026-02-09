@@ -1,10 +1,10 @@
-Start testing: Feb 05 11:42 RTZ 2 (çèìà)
+Start testing: Feb 09 16:02 RTZ 2 (çèìà)
 ----------------------------------------------------------
 1/1 Testing: lexer_tests
 1/1 Test: lexer_tests
 Command: "C:/school/priklad/6sem/compiler-project/build/Debug/lexer_test_runner.exe" "C:/school/priklad/6sem/compiler-project/tests/lexer/valid" "C:/school/priklad/6sem/compiler-project/tests/lexer/invalid"
 Directory: C:/school/priklad/6sem/compiler-project/build
-"lexer_tests" start time: Feb 05 11:42 RTZ 2 (çèìà)
+"lexer_tests" start time: Feb 09 16:02 RTZ 2 (çèìà)
 Output:
 ----------------------------------------------------------
 [PASS] test_array.src
@@ -20,6 +20,7 @@ Output:
 [PASS] test_literals_mix.src
 [PASS] test_logical.src
 [PASS] test_long_identifier.src
+[PASS] test_mixed1.src
 [PASS] test_multiline_positions.src
 [PASS] test_numbers.src
 [PASS] test_operators.src
@@ -39,11 +40,11 @@ Output:
 [PASS] test_unterminated_string.src
 [PASS] test_unterminated_string_newline.src
 <end of output>
-Test time =   0.05 sec
+Test time =   0.07 sec
 ----------------------------------------------------------
 Test Passed.
-"lexer_tests" end time: Feb 05 11:42 RTZ 2 (çèìà)
+"lexer_tests" end time: Feb 09 16:02 RTZ 2 (çèìà)
 "lexer_tests" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-End testing: Feb 05 11:42 RTZ 2 (çèìà)
+End testing: Feb 09 16:02 RTZ 2 (çèìà)

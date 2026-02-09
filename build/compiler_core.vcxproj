@@ -298,6 +298,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   <ItemGroup>
     <ClCompile Include="C:\school\priklad\6sem\compiler-project\src\lexer\token.cpp" />
     <ClCompile Include="C:\school\priklad\6sem\compiler-project\src\lexer\scanner.cpp" />
+    <ClCompile Include="C:\school\priklad\6sem\compiler-project\src\preprocessor\preprocessor.cpp" />
     <ClCompile Include="C:\school\priklad\6sem\compiler-project\src\utils\file_utils.cpp" />
   </ItemGroup>
   <ItemGroup />
