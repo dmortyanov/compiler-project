@@ -1,0 +1,13 @@
+build/
+Testing/
+*.exe
+*.obj
+*.lib
+*.ilk
+*.pdb
+*.tlog
+*.lastbuildstate
+*.vcxproj*
+*.sln
+*.log
+*.cache
