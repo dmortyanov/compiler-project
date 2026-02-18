@@ -25,6 +25,11 @@ target_link_libraries(compiler PRIVATE compiler_core)
 add_executable(lexer_test_runner tests/test_runner/main.cpp)
 target_link_libraries(lexer_test_runner PRIVATE compiler_core)
 
+# GCC < 9 requires explicit linking for std::filesystem
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+    target_link_libraries(lexer_test_runner PRIVATE stdc++fs)
+endif()
+
 enable_testing()
 add_test(
     NAME lexer_tests
