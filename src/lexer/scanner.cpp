@@ -178,6 +178,9 @@ Token Scanner::scan_token() {
     return scan_token();
 }
 
+// Comment handling is intentionally kept here so that the Scanner can be used
+// standalone without the Preprocessor.  When the Preprocessor runs first,
+// comments are already replaced with spaces and this code is a no-op.
 void Scanner::skip_whitespace_and_comments() {
     while (current_ < source_.size()) {
         char c = peek();

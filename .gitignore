@@ -1,8 +1,25 @@
+# Build output
 build/
+cmake-build-*/
+
+# Testing artifacts
 Testing/
+
+# Generated files
+tokens.txt
+
+# Compiled binaries
 *.exe
+*.out
+*.a
+*.o
 *.obj
 *.lib
+*.dll
+*.so
+*.dylib
+
+# MSVC artifacts
 *.ilk
 *.pdb
 *.tlog
@@ -11,3 +28,18 @@ Testing/
 *.sln
 *.log
 *.cache
+*.recipe
+x64/
+Debug/
+Release/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+.DS_Store

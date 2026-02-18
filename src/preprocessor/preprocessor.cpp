@@ -112,14 +112,12 @@ std::string Preprocessor::process() {
             line_end += 1;
         }
 
-        bool only_ws = true;
         std::size_t hash_pos = std::string::npos;
         for (std::size_t k = 0; k < line_text.size(); ++k) {
             char c = line_text[k];
             if (c == ' ' || c == '\t') {
                 continue;
             }
-            only_ws = false;
             if (c == '#') {
                 hash_pos = k;
             }
