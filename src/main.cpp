@@ -11,16 +11,15 @@
 #include "preprocessor/preprocessor.h"
 
 static void print_usage() {
-    std::cout
-        << "Usage:\n"
-        << "  compiler lex   --input <file> [--output <file>]\n"
-        << "  compiler parse --input <file> [--output <file>] "
-           "[--format text|dot|json] [--verbose]\n";
+    std::cout << "Usage:\n";
+    std::cout << "  compiler lex   --input <file> [--output <file>]\n";
+    std::cout << "  compiler parse --input <file> [--output <file>] [--format text|dot|json] [--verbose]\n";
 }
 
 static std::string read_source(const std::string& path) {
     std::ifstream in(path, std::ios::in | std::ios::binary);
-    if (!in) return "";
+    if (!in)
+        return "";
     return std::string((std::istreambuf_iterator<char>(in)),
                        std::istreambuf_iterator<char>());
 }

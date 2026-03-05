@@ -10,7 +10,9 @@ void Preprocessor::define(const std::string& name,
     macros_[name] = value;
 }
 
-void Preprocessor::undefine(const std::string& name) { macros_.erase(name); }
+void Preprocessor::undefine(const std::string& name) {
+    macros_.erase(name);
+}
 
 const std::vector<PreprocessError>& Preprocessor::errors() const {
     return errors_;

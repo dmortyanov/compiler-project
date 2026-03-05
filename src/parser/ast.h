@@ -66,8 +66,6 @@ using ExprPtr = std::unique_ptr<ExpressionNode>;
 using StmtPtr = std::unique_ptr<StatementNode>;
 using DeclPtr = std::unique_ptr<DeclarationNode>;
 
-// ==================== Expression Nodes ====================
-
 struct LiteralExprNode : ExpressionNode {
     enum class Kind { Integer, Float, Bool, String };
     Kind kind;
@@ -106,8 +104,6 @@ struct AssignmentExprNode : ExpressionNode {
     ExprPtr value;
     void accept(ASTVisitor& v) override { v.visit(*this); }
 };
-
-// ==================== Statement Nodes ====================
 
 struct BlockStmtNode : StatementNode {
     std::vector<StmtPtr> statements;
@@ -152,8 +148,6 @@ struct VarDeclStmtNode : StatementNode, DeclarationNode {
     void accept(ASTVisitor& v) override { v.visit(*this); }
 };
 
-// ==================== Declaration Nodes ====================
-
 struct ParamNode {
     std::string type_name;
     std::string name;
@@ -174,8 +168,6 @@ struct StructDeclNode : DeclarationNode {
     std::vector<std::unique_ptr<VarDeclStmtNode>> fields;
     void accept(ASTVisitor& v) override { v.visit(*this); }
 };
-
-// ==================== Program Node ====================
 
 struct ProgramNode : ASTNode {
     std::vector<DeclPtr> declarations;

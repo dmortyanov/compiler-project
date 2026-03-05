@@ -5,6 +5,7 @@
 
 namespace utils {
 
+// читаем весь файл в строку
 std::string read_file(const std::string& path) {
     std::ifstream in(path, std::ios::in | std::ios::binary);
     if (!in) {

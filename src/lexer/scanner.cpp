@@ -32,6 +32,7 @@ int Scanner::get_column() const { return column_; }
 const std::vector<ScanError>& Scanner::errors() const { return errors_; }
 
 namespace {
+// позиция EOF = после последнего не-пробела (для тестов)
 void compute_eof_position(const std::string& source, int& out_line,
                           int& out_col) {
     std::size_t last_non_ws = std::string::npos;
@@ -70,7 +71,7 @@ void compute_eof_position(const std::string& source, int& out_line,
     out_line = line;
     out_col = col;
 }
-} // namespace
+}
 
 Token Scanner::scan_token() {
     skip_whitespace_and_comments();
@@ -178,9 +179,6 @@ Token Scanner::scan_token() {
     return scan_token();
 }
 
-// Comment handling is intentionally kept here so that the Scanner can be used
-// standalone without the Preprocessor.  When the Preprocessor runs first,
-// comments are already replaced with spaces and this code is a no-op.
 void Scanner::skip_whitespace_and_comments() {
     while (current_ < source_.size()) {
         char c = peek();
@@ -365,7 +363,7 @@ Token Scanner::number_literal(int start_line, int start_col) {
 
 Token Scanner::string_literal(int start_line, int start_col) {
     std::size_t start = current_ - 1;
-    std::string value;
+    std::string value;  // уже без кавычек
     bool terminated = false;
 
     while (current_ < source_.size()) {

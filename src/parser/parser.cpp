@@ -8,8 +8,6 @@ Parser::Parser(const std::vector<Token>& tokens)
 const std::vector<ParseError>& Parser::errors() const { return errors_; }
 const ErrorMetrics& Parser::metrics() const { return metrics_; }
 
-// ==================== Utility ====================
-
 const Token& Parser::peek() const { return tokens_[current_]; }
 
 const Token& Parser::previous() const { return tokens_[current_ - 1]; }
@@ -62,8 +60,7 @@ void Parser::report_error(const Token& token, const std::string& message) {
     metrics_.total_errors++;
 }
 
-// ==================== Error Recovery ====================
-
+// после ошибки — прыгаем до ; или начала след. конструкции
 void Parser::synchronize() {
     int skipped = 0;
     advance();
@@ -98,8 +95,6 @@ void Parser::synchronize() {
     metrics_.tokens_skipped += skipped;
 }
 
-// ==================== Program ====================
-
 std::unique_ptr<ProgramNode> Parser::parse() {
     auto program = std::make_unique<ProgramNode>();
     program->line = peek().line;
@@ -113,8 +108,6 @@ std::unique_ptr<ProgramNode> Parser::parse() {
     }
     return program;
 }
-
-// ==================== Declarations ====================
 
 bool Parser::isTypeName() const {
     auto t = peek().type;
@@ -225,8 +218,6 @@ std::unique_ptr<VarDeclStmtNode> Parser::parseVarDecl(
     consume(TokenType::SEMICOLON, "Expected ';' after variable declaration");
     return node;
 }
-
-// ==================== Statements ====================
 
 StmtPtr Parser::parseStatement() {
     if (check(TokenType::LBRACE)) return parseBlock();
@@ -378,8 +369,6 @@ StmtPtr Parser::parseReturnStmt() {
     consume(TokenType::SEMICOLON, "Expected ';' after return value");
     return node;
 }
-
-// ==================== Expressions ====================
 
 ExprPtr Parser::parseExpression() { return parseAssignment(); }
 

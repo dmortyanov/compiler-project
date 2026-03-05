@@ -2,6 +2,7 @@
 
 #include <sstream>
 
+// для вывода в тесты и отладку
 std::string token_type_to_string(TokenType type) {
     switch (type) {
     case TokenType::KW_IF:
