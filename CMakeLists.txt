@@ -14,6 +14,7 @@ endif()
 add_library(compiler_core
     src/lexer/token.cpp
     src/lexer/scanner.cpp
+    src/parser/parser.cpp
     src/preprocessor/preprocessor.cpp
     src/utils/file_utils.cpp
 )
@@ -36,4 +37,18 @@ add_test(
     COMMAND lexer_test_runner
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/lexer/valid"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/lexer/invalid"
+)
+
+add_executable(parser_test_runner tests/test_runner/parser_test_runner.cpp)
+target_link_libraries(parser_test_runner PRIVATE compiler_core)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+    target_link_libraries(parser_test_runner PRIVATE stdc++fs)
+endif()
+
+add_test(
+    NAME parser_tests
+    COMMAND parser_test_runner
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/parser/valid"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/parser/invalid"
 )

@@ -1,0 +1,10 @@
+1:17 ERROR Expected '(' after 'for'
+1:17 ERROR Expected expression
+1:19 ERROR Expected ';'
+1:19 ERROR Expected expression
+1:21 ERROR Expected ';' after for condition
+1:21 ERROR Expected expression
+1:22 ERROR Expected ')' after for clauses
+1:22 ERROR Expected expression
+1:22 ERROR Expected ';' after expression
+1:22 ERROR Expected '}'

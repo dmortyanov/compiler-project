@@ -1,0 +1,1 @@
+fn main() { int x = add(1, 2); }

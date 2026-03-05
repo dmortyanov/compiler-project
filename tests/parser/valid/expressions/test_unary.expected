@@ -1,0 +1,7 @@
+Program [line 1]:
+  FunctionDecl: main -> void [line 1]:
+    Parameters: []
+    Body [line 1]:
+      Block:
+        VarDecl: int x = -5 [line 1]
+        VarDecl: bool y = !true [line 1]
