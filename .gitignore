@@ -43,3 +43,7 @@ Release/
 # OS
 Thumbs.db
 .DS_Store
+ast.dot
+ast.json
+ast.png
+ast.txt

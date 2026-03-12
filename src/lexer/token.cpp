@@ -41,6 +41,10 @@ std::string token_type_to_string(TokenType type) {
         return "PLUS";
     case TokenType::MINUS:
         return "MINUS";
+    case TokenType::INC:
+        return "INC";
+    case TokenType::DEC:
+        return "DEC";
     case TokenType::STAR:
         return "STAR";
     case TokenType::SLASH:
@@ -75,6 +79,8 @@ std::string token_type_to_string(TokenType type) {
         return "STAR_ASSIGN";
     case TokenType::SLASH_ASSIGN:
         return "SLASH_ASSIGN";
+    case TokenType::ARROW:
+        return "ARROW";
     case TokenType::LPAREN:
         return "LPAREN";
     case TokenType::RPAREN:

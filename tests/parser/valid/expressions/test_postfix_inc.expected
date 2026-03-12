@@ -1,0 +1,9 @@
+Program [line 1]:
+  FunctionDecl: main -> void [line 1]:
+    Parameters: []
+    Body [line 1]:
+      Block:
+        VarDecl: int x = 0 [line 1]
+        ExprStmt [line 1]:
+          Postfix: ++
+            Identifier: x

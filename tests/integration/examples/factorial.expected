@@ -1,0 +1,20 @@
+Program [line 1]:
+  FunctionDecl: factorial -> int [line 1]:
+    Parameters: [int n]
+    Body [line 1]:
+      Block:
+        IfStmt [line 2]:
+          Condition:
+            Binary: <=
+              Identifier: n
+              Literal: 1
+          Then:
+            Block:
+              Return: 1 [line 2]
+        Return: n * factorial(n - 1) [line 3]
+  FunctionDecl: main -> int [line 6]:
+    Parameters: []
+    Body [line 6]:
+      Block:
+        VarDecl: int result = factorial(5) [line 7]
+        Return: result [line 8]

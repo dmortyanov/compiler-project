@@ -233,6 +233,19 @@ public:
         indent_--;
     }
 
+    void visit(PostfixExprNode& node) override {
+        if (expr_inline_) {
+            node.operand->accept(*this);
+            out_ << node.op;
+            return;
+        }
+        ind();
+        out_ << "Postfix: " << node.op << "\n";
+        indent_++;
+        node.operand->accept(*this);
+        indent_--;
+    }
+
     void visit(AssignmentExprNode& node) override {
         if (expr_inline_) {
             node.target->accept(*this);
@@ -431,6 +444,15 @@ public:
         }
     }
 
+    void visit(PostfixExprNode& node) override {
+        int id = next_id();
+        out_ << "  n" << id << " [label=\"Postfix: " << node.op
+             << "\", style=filled, fillcolor=\"#ffffc0\"];\n";
+        int child = peek_id();
+        node.operand->accept(*this);
+        out_ << "  n" << id << " -> n" << child << ";\n";
+    }
+
     void visit(AssignmentExprNode& node) override {
         int id = next_id();
         out_ << "  n" << id << " [label=\"Assignment: " << node.op
@@ -601,6 +623,13 @@ public:
             node.arguments[i]->accept(*this);
         }
         out_ << "]}";
+    }
+
+    void visit(PostfixExprNode& node) override {
+        out_ << "{\"type\":\"Postfix\",\"op\":\"" << node.op
+             << "\",\"line\":" << node.line << ",\"operand\":";
+        node.operand->accept(*this);
+        out_ << "}";
     }
 
     void visit(AssignmentExprNode& node) override {

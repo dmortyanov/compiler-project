@@ -8,6 +8,7 @@
 #include "parser/ast.h"
 #include "parser/ast_printer.h"
 #include "parser/parser.h"
+#include "parser/symbol_table.h"
 #include "preprocessor/preprocessor.h"
 
 static void print_usage() {
@@ -114,6 +115,16 @@ static int cmd_parse(const std::string& input_path,
         std::cerr << "Recovered: " << m.recovered << "\n";
         std::cerr << "Tokens skipped: " << m.tokens_skipped << "\n";
         std::cerr << "Recovery rate: " << (m.recovery_rate() * 100) << "%\n";
+
+        auto sym = build_symbol_tables(*ast);
+        for (const auto& e : sym.errors) {
+            std::cerr << "SEMANTIC " << e << "\n";
+        }
+        std::cerr << "Scopes: " << sym.scopes.size() << "\n";
+        for (const auto& scope : sym.scopes) {
+            std::cerr << "  scope#" << scope.id << " parent=" << scope.parent_id
+                      << " symbols=" << scope.symbols.size() << "\n";
+        }
     }
 
     std::string output;

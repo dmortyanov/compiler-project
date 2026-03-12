@@ -112,13 +112,12 @@ std::unique_ptr<ProgramNode> Parser::parse() {
 bool Parser::isTypeName() const {
     auto t = peek().type;
     return t == TokenType::KW_INT || t == TokenType::KW_FLOAT ||
-           t == TokenType::KW_BOOL || t == TokenType::KW_VOID ||
-           t == TokenType::IDENTIFIER;
+           t == TokenType::KW_BOOL || t == TokenType::KW_VOID;
 }
 
 std::string Parser::parseTypeName() {
     if (match({TokenType::KW_INT, TokenType::KW_FLOAT, TokenType::KW_BOOL,
-               TokenType::KW_VOID, TokenType::IDENTIFIER})) {
+               TokenType::KW_VOID})) {
         return previous().lexeme;
     }
     report_error(peek(), "Expected type name");
@@ -171,7 +170,7 @@ std::unique_ptr<FunctionDeclNode> Parser::parseFunctionDecl() {
     }
     consume(TokenType::RPAREN, "Expected ')' after parameters");
 
-    if (match(TokenType::COLON)) {
+    if (match(TokenType::ARROW)) {
         node->return_type = parseTypeName();
     } else {
         node->return_type = "void";
@@ -233,22 +232,11 @@ StmtPtr Parser::parseStatement() {
         return empty;
     }
 
-    if (isTypeName() && peek().type != TokenType::IDENTIFIER) {
+    if (isTypeName()) {
         int l = peek().line;
         int c = peek().column;
         std::string type = parseTypeName();
         return parseVarDecl(type, l, c);
-    }
-    if (peek().type == TokenType::IDENTIFIER) {
-        std::size_t saved = current_;
-        std::string maybe_type = peek().lexeme;
-        advance();
-        if (check(TokenType::IDENTIFIER)) {
-            int l = tokens_[saved].line;
-            int c = tokens_[saved].column;
-            return parseVarDecl(maybe_type, l, c);
-        }
-        current_ = saved;
     }
 
     auto expr = parseExpression();
@@ -503,7 +491,7 @@ ExprPtr Parser::parseMultiplicative() {
 }
 
 ExprPtr Parser::parseUnary() {
-    if (match({TokenType::MINUS, TokenType::NOT})) {
+    if (match({TokenType::MINUS, TokenType::NOT, TokenType::INC, TokenType::DEC})) {
         std::string op = previous().lexeme;
         int l = previous().line;
         int c = previous().column;
@@ -588,14 +576,32 @@ ExprPtr Parser::parsePrimary() {
                 }
             }
             consume(TokenType::RPAREN, "Expected ')' after arguments");
-            return call;
+            ExprPtr base = std::move(call);
+            if (match({TokenType::INC, TokenType::DEC})) {
+                auto post = std::make_unique<PostfixExprNode>();
+                post->line = previous().line;
+                post->column = previous().column;
+                post->operand = std::move(base);
+                post->op = previous().lexeme;
+                return post;
+            }
+            return base;
         }
 
         auto ident = std::make_unique<IdentifierExprNode>();
         ident->line = l;
         ident->column = c;
         ident->name = name;
-        return ident;
+        ExprPtr base = std::move(ident);
+        if (match({TokenType::INC, TokenType::DEC})) {
+            auto post = std::make_unique<PostfixExprNode>();
+            post->line = previous().line;
+            post->column = previous().column;
+            post->operand = std::move(base);
+            post->op = previous().lexeme;
+            return post;
+        }
+        return base;
     }
     if (match(TokenType::LPAREN)) {
         int l = previous().line;

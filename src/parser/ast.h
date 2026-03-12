@@ -16,6 +16,7 @@ struct IdentifierExprNode;
 struct BinaryExprNode;
 struct UnaryExprNode;
 struct CallExprNode;
+struct PostfixExprNode;
 struct AssignmentExprNode;
 
 struct BlockStmtNode;
@@ -39,6 +40,7 @@ public:
     virtual void visit(BinaryExprNode& node) = 0;
     virtual void visit(UnaryExprNode& node) = 0;
     virtual void visit(CallExprNode& node) = 0;
+    virtual void visit(PostfixExprNode& node) = 0;
     virtual void visit(AssignmentExprNode& node) = 0;
     virtual void visit(BlockStmtNode& node) = 0;
     virtual void visit(ExprStmtNode& node) = 0;
@@ -95,6 +97,12 @@ struct UnaryExprNode : ExpressionNode {
 struct CallExprNode : ExpressionNode {
     std::string callee;
     std::vector<ExprPtr> arguments;
+    void accept(ASTVisitor& v) override { v.visit(*this); }
+};
+
+struct PostfixExprNode : ExpressionNode {
+    ExprPtr operand;
+    std::string op; // "++" or "--"
     void accept(ASTVisitor& v) override { v.visit(*this); }
 };
 

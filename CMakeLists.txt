@@ -15,6 +15,7 @@ add_library(compiler_core
     src/lexer/token.cpp
     src/lexer/scanner.cpp
     src/parser/parser.cpp
+    src/parser/symbol_table.cpp
     src/preprocessor/preprocessor.cpp
     src/utils/file_utils.cpp
 )
@@ -51,4 +52,17 @@ add_test(
     COMMAND parser_test_runner
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/parser/valid"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/parser/invalid"
+)
+
+add_executable(integration_test_runner tests/test_runner/integration_test_runner.cpp)
+target_link_libraries(integration_test_runner PRIVATE compiler_core)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+    target_link_libraries(integration_test_runner PRIVATE stdc++fs)
+endif()
+
+add_test(
+    NAME integration_examples
+    COMMAND integration_test_runner
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/examples"
 )

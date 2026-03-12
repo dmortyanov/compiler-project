@@ -23,7 +23,7 @@ StructDecl     ::= "struct" IDENTIFIER "{" { VarDecl } "}"
 VarDecl        ::= Type IDENTIFIER [ "=" Expression ] ";"
 Parameters     ::= Parameter { "," Parameter }
 Parameter      ::= Type IDENTIFIER
-Type           ::= "int" | "float" | "bool" | "void" | IDENTIFIER
+Type           ::= "int" | "float" | "bool" | "void"
 ```
 
 ## 4. Statements

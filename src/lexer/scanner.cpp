@@ -106,13 +106,24 @@ Token Scanner::scan_token() {
     case ':':
         return Token{TokenType::COLON, ":", start_line, start_col, {}};
     case '+':
+        if (match('+')) {
+            return Token{TokenType::INC, "++", start_line, start_col, {}};
+        }
         if (match('=')) {
-            return Token{TokenType::PLUS_ASSIGN, "+=", start_line, start_col, {}};
+            return Token{TokenType::PLUS_ASSIGN, "+=", start_line, start_col,
+                         {}};
         }
         return Token{TokenType::PLUS, "+", start_line, start_col, {}};
     case '-':
+        if (match('-')) {
+            return Token{TokenType::DEC, "--", start_line, start_col, {}};
+        }
+        if (match('>')) {
+            return Token{TokenType::ARROW, "->", start_line, start_col, {}};
+        }
         if (match('=')) {
-            return Token{TokenType::MINUS_ASSIGN, "-=", start_line, start_col, {}};
+            return Token{TokenType::MINUS_ASSIGN, "-=", start_line, start_col,
+                         {}};
         }
         return Token{TokenType::MINUS, "-", start_line, start_col, {}};
     case '*':

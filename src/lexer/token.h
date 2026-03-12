@@ -28,6 +28,8 @@ enum class TokenType {
     // Operators
     PLUS,
     MINUS,
+    INC,
+    DEC,
     STAR,
     SLASH,
     PERCENT,
@@ -45,6 +47,7 @@ enum class TokenType {
     MINUS_ASSIGN,
     STAR_ASSIGN,
     SLASH_ASSIGN,
+    ARROW,
 
     // Delimiters
     LPAREN,
