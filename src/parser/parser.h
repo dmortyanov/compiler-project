@@ -22,6 +22,12 @@ struct ErrorMetrics {
              : static_cast<double>(recovered) / total_errors;
     }
 };
+struct IfStmtNode : StatementNode {
+    ExprPtr condition;
+    StmtPtr then_branch;
+    StmtPtr else_branch;
+    bool is_matched;  // true для matched, false для unmatched
+};
 
 class Parser {
 public:
@@ -62,6 +68,10 @@ private:
 
     StmtPtr parseStatement();
     std::unique_ptr<BlockStmtNode> parseBlock();
+    StmtPtr parseMatchedStmt();
+    StmtPtr parseUnmatchedStmt();
+    StmtPtr parseIfStmtMatched();  // для matched if
+    StmtPtr parseIfStmtUnmatched(); // для unmatched if
     StmtPtr parseIfStmt();
     StmtPtr parseWhileStmt();
     StmtPtr parseForStmt();
@@ -71,6 +81,7 @@ private:
     ExprPtr parseAssignment();
     ExprPtr parseLogicalOr();
     ExprPtr parseLogicalAnd();
+    StmtPtr parseExprStmt();
     ExprPtr parseEquality();
     ExprPtr parseRelational();
     ExprPtr parseAdditive();

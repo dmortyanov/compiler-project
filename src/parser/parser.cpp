@@ -224,6 +224,8 @@ StmtPtr Parser::parseStatement() {
     if (check(TokenType::KW_WHILE)) return parseWhileStmt();
     if (check(TokenType::KW_FOR)) return parseForStmt();
     if (check(TokenType::KW_RETURN)) return parseReturnStmt();
+    if (check(TokenType::KW_IF)) return parseIfStmtUnmatched(); 
+    if (check(TokenType::KW_WHILE)) return parseWhileStmt();
 
     if (match(TokenType::SEMICOLON)) {
         auto empty = std::make_unique<ExprStmtNode>();
@@ -263,18 +265,109 @@ std::unique_ptr<BlockStmtNode> Parser::parseBlock() {
     return node;
 }
 
-StmtPtr Parser::parseIfStmt() {
+// StmtPtr Parser::parseIfStmt() {
+//     auto node = std::make_unique<IfStmtNode>();
+//     node->line = peek().line;
+//     node->column = peek().column;
+//     consume(TokenType::KW_IF, "Expected 'if'");
+//     consume(TokenType::LPAREN, "Expected '(' after 'if'");
+//     node->condition = parseExpression();
+//     consume(TokenType::RPAREN, "Expected ')' after if condition");
+//     node->then_branch = parseStatement();
+//     if (match(TokenType::KW_ELSE)) {
+//         node->else_branch = parseStatement();
+//     }
+//     return node;
+// }
+
+StmtPtr Parser::parseMatchedStmt() {
+    if (check(TokenType::LBRACE)) return parseBlock();
+    if (check(TokenType::KW_WHILE)) return parseWhileStmt();
+    if (check(TokenType::KW_FOR)) return parseForStmt();
+    if (check(TokenType::KW_RETURN)) return parseReturnStmt();
+    if (check(TokenType::KW_IF)) return parseIfStmtMatched();
+    if (isTypeName()) {
+        int line = peek().line;
+        int col = peek().column;
+        std::string type = parseTypeName();
+        return parseVarDecl(type, line, col);
+    }
+    if (check(TokenType::SEMICOLON)) {
+        advance();
+        auto empty = std::make_unique<ExprStmtNode>();
+        empty->line = previous().line;
+        empty->column = previous().column;
+        empty->expression = nullptr;
+        return empty;
+    }
+    return parseExprStmt();
+}
+
+StmtPtr Parser::parseUnmatchedStmt() {
+    if (check(TokenType::KW_IF)) return parseIfStmtUnmatched(); // if без else или с else-unmatched
+    // остальное не может быть unmatched
+    return nullptr;
+}
+
+StmtPtr Parser::parseIfStmtMatched() {
     auto node = std::make_unique<IfStmtNode>();
     node->line = peek().line;
     node->column = peek().column;
+    node->is_matched = true;  
+    
     consume(TokenType::KW_IF, "Expected 'if'");
     consume(TokenType::LPAREN, "Expected '(' after 'if'");
     node->condition = parseExpression();
-    consume(TokenType::RPAREN, "Expected ')' after if condition");
-    node->then_branch = parseStatement();
-    if (match(TokenType::KW_ELSE)) {
-        node->else_branch = parseStatement();
+    consume(TokenType::RPAREN, "Expected ')' after condition");
+    
+    node->then_branch = parseMatchedStmt();
+    consume(TokenType::KW_ELSE, "Expected 'else' in matched if");
+    node->else_branch = parseMatchedStmt();
+    
+    return node;
+}
+
+StmtPtr Parser::parseExprStmt() {
+    auto expr = parseExpression();
+    auto node = std::make_unique<ExprStmtNode>();
+    node->line = expr->line;
+    node->column = expr->column;
+    node->expression = std::move(expr);
+    consume(TokenType::SEMICOLON, "Expected ';' after expression");
+    return node;
+}
+
+StmtPtr Parser::parseIfStmtUnmatched() {
+    auto node = std::make_unique<IfStmtNode>();
+    node->line = peek().line;
+    node->column = peek().column;
+    node->is_matched = false;  
+    
+    consume(TokenType::KW_IF, "Expected 'if'");
+    consume(TokenType::LPAREN, "Expected '(' after 'if'");
+    node->condition = parseExpression();
+    consume(TokenType::RPAREN, "Expected ')' after condition");
+    
+    // Сохраняем позицию перед разбором then
+    std::size_t after_then_pos = current_;
+    
+    // Пробуем разобрать then как matched
+    auto then_matched = parseMatchedStmt();
+    
+    // Проверяем, есть ли else после then
+    if (check(TokenType::KW_ELSE)) {
+        // Вариант 2: if (expr) MatchedStmt else UnmatchedStmt
+        node->then_branch = std::move(then_matched);
+        consume(TokenType::KW_ELSE, "Expected 'else' in if statement");
+        node->else_branch = parseUnmatchedStmt();
+    } else {
+        // Вариант 1: if (expr) Statement (без else)
+        // Откатываемся и парсим then как любой statement
+        current_ = after_then_pos;
+        node->then_branch = parseStatement();
+        node->else_branch = nullptr;
     }
+    
     return node;
 }
 
