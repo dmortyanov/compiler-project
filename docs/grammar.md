@@ -30,19 +30,22 @@
 ## 2) Операторы (statements)
 
 ```
-<Statement>    := <Block>
-               | <IfStmt>
-               | <WhileStmt>
-               | <ForStmt>
-               | <ReturnStmt>
-               | <VarDecl>
-               | <ExprStmt>
-               | ";"
+<Statement>    := <MatchedStmt>
+               | <UnmatchedStmt>
+
+<MatchedStmt>  := <Block>
+                | <WhileStmt>
+                | <ForStmt>
+                | <ReturnStmt>
+                | <VarDecl>
+                | <ExprStmt>
+                | ";"
+                | "if" "(" <Expression> ")" <MatchedStmt> "else" <MatchedStmt>
+
+<UnmatchedStmt> := "if" "(" <Expression> ")" <Statement>
+                 | "if" "(" <Expression> ")" <MatchedStmt> "else" <UnmatchedStmt>
 
 <Block>        := "{" { <Statement> } "}"
-
-<IfStmt>       := "if" "(" <Expression> ")" <Statement> [ <ElsePart> ]
-<ElsePart>     := "else" <Statement>
 
 <WhileStmt>    := "while" "(" <Expression> ")" <Statement>
 
