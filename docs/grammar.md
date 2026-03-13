@@ -1,103 +1,94 @@
-# Formal Grammar Specification
+# Грамматика EBNF
 
-## 1. Overview
+**Стартовый нетерминал / Start symbol:** `<Program>`
 
-This document defines the Context-Free Grammar (CFG) for the MiniCompiler language using EBNF notation.
-
-- **Start symbol:** `Program`
-- **Terminal symbols:** Token types from Sprint 1 (keywords, identifiers, literals, operators, delimiters)
-- **Non-terminals:** Grammar constructs listed below
-
-## 2. Program Structure
+## 1) Программа и объявления
 
 ```
-Program        ::= { Declaration }
-Declaration    ::= FunctionDecl | StructDecl | VarDecl
+<Program>      := { <Declaration> }
+
+<Declaration>  := <FunctionDecl>
+               | <StructDecl>
+               | <VarDecl>
+
+<FunctionDecl> := "fn" IDENTIFIER "(" [ <Parameters> ] ")" [ <ReturnType> ] <Block>
+<ReturnType>   := "->" <Type>
+
+<StructDecl>   := "struct" IDENTIFIER "{" { <VarDecl> } "}" [ ";" ]
+
+<VarDecl>      := <Type> IDENTIFIER [ <VarInit> ] ";"
+<VarInit>      := "=" <Expression>
+
+<Parameters>   := <Parameter> { "," <Parameter> }
+<Parameter>    := <Type> IDENTIFIER
+
+<Type>         := "int" | "float" | "bool" | "void"
 ```
 
-## 3. Declarations
+---
+
+## 2) Операторы (statements)
 
 ```
-FunctionDecl   ::= "fn" IDENTIFIER "(" [ Parameters ] ")" [ "->" Type ] Block
-StructDecl     ::= "struct" IDENTIFIER "{" { VarDecl } "}"
-VarDecl        ::= Type IDENTIFIER [ "=" Expression ] ";"
-Parameters     ::= Parameter { "," Parameter }
-Parameter      ::= Type IDENTIFIER
-Type           ::= "int" | "float" | "bool" | "void"
+<Statement>    := <Block>
+               | <IfStmt>
+               | <WhileStmt>
+               | <ForStmt>
+               | <ReturnStmt>
+               | <VarDecl>
+               | <ExprStmt>
+               | ";"
+
+<Block>        := "{" { <Statement> } "}"
+
+<IfStmt>       := "if" "(" <Expression> ")" <Statement> [ <ElsePart> ]
+<ElsePart>     := "else" <Statement>
+
+<WhileStmt>    := "while" "(" <Expression> ")" <Statement>
+
+<ForStmt>      := "for" "(" <ForInit> [ <Expression> ] ";" [ <Expression> ] ")" <Statement>
+<ForInit>      := ";"
+               | <VarDecl>
+               | <Expression> ";"
+
+<ReturnStmt>   := "return" [ <Expression> ] ";"
+<ExprStmt>     := <Expression> ";"
 ```
 
-## 4. Statements
+## 3) Выражения (приоритеты, LL(1))
 
 ```
-Statement      ::= Block
-                  | IfStmt
-                  | WhileStmt
-                  | ForStmt
-                  | ReturnStmt
-                  | VarDecl
-                  | ExprStmt
-                  | ";"
+<Expression>        := <Assignment>
 
-Block          ::= "{" { Statement } "}"
-IfStmt         ::= "if" "(" Expression ")" Statement [ "else" Statement ]
-WhileStmt      ::= "while" "(" Expression ")" Statement
-ForStmt        ::= "for" "(" [ VarDecl | ExprStmt ] [ Expression ] ";" [ Expression ] ")" Statement
-ReturnStmt     ::= "return" [ Expression ] ";"
-ExprStmt       ::= Expression ";"
+<Assignment>        := <LogicalOr> [ <AssignTail> ]
+<AssignTail>        := <AssignOp> <Assignment>
+<AssignOp>          := "=" | "+=" | "-=" | "*=" | "/="
+
+<LogicalOr>         := <LogicalAnd> { "||" <LogicalAnd> }
+<LogicalAnd>        := <Equality>   { "&&" <Equality> }
+
+<Equality>          := <Relational> [ <EqTail> ]
+<EqTail>            := ( "==" | "!=" ) <Relational>
+
+<Relational>        := <Additive> [ <RelTail> ]
+<RelTail>           := ( "<" | "<=" | ">" | ">=" ) <Additive>
+
+<Additive>          := <Multiplicative> { ( "+" | "-" ) <Multiplicative> }
+<Multiplicative>    := <Unary>          { ( "*" | "/" | "%" ) <Unary> }
+
+<Unary>             := ( "-" | "!" | "++" | "--" ) <Unary>
+                    | <Postfix>
+
+<Postfix>           := <Primary> [ <PostfixOp> ]
+<PostfixOp>         := "++" | "--"
+
+<Primary>           := INT_LITERAL
+                    | FLOAT_LITERAL
+                    | STRING_LITERAL
+                    | BOOL_LITERAL
+                    | IDENTIFIER [ <CallSuffix> ]
+                    | "(" <Expression> ")"
+
+<CallSuffix>        := "(" [ <Arguments> ] ")"
+<Arguments>         := <Expression> { "," <Expression> }
 ```
-
-Note: The "dangling else" is resolved by binding `else` to the nearest `if`.
-
-## 5. Expressions (by precedence, lowest to highest)
-
-```
-Expression     ::= Assignment
-
-Assignment     ::= LogicalOr [ ("=" | "+=" | "-=" | "*=" | "/=") Assignment ]
-
-LogicalOr      ::= LogicalAnd { "||" LogicalAnd }
-
-LogicalAnd     ::= Equality { "&&" Equality }
-
-Equality       ::= Relational { ("==" | "!=") Relational }
-
-Relational     ::= Additive { ("<" | "<=" | ">" | ">=") Additive }
-
-Additive       ::= Multiplicative { ("+" | "-") Multiplicative }
-
-Multiplicative ::= Unary { ("*" | "/" | "%") Unary }
-
-Unary          ::= ( "-" | "!" ) Unary
-                  | Primary
-
-Primary        ::= INT_LITERAL
-                  | FLOAT_LITERAL
-                  | STRING_LITERAL
-                  | BOOL_LITERAL
-                  | IDENTIFIER [ "(" [ Arguments ] ")" ]
-                  | "(" Expression ")"
-
-Arguments      ::= Expression { "," Expression }
-```
-
-## 6. Precedence & Associativity Table
-
-| Level | Operators            | Associativity   |
-|-------|----------------------|-----------------|
-| 1     | `=` `+=` `-=` `*=` `/=` | Right       |
-| 2     | `\|\|`               | Left            |
-| 3     | `&&`                 | Left            |
-| 4     | `==` `!=`            | Non-associative |
-| 5     | `<` `<=` `>` `>=`    | Non-associative |
-| 6     | `+` `-`              | Left            |
-| 7     | `*` `/` `%`          | Left            |
-| 8     | `-` (unary) `!`      | Right (prefix)  |
-| 9     | Primary, Call, `()`  | —               |
-
-## 7. Lexical References
-
-Terminal symbols correspond to token types defined in Sprint 1:
-- Keywords: `KW_IF`, `KW_ELSE`, `KW_WHILE`, `KW_FOR`, `KW_INT`, `KW_FLOAT`, `KW_BOOL`, `KW_RETURN`, `KW_VOID`, `KW_STRUCT`, `KW_FN`
-- Literals: `INT_LITERAL`, `FLOAT_LITERAL`, `STRING_LITERAL`, `BOOL_LITERAL`
-- Identifiers: `IDENTIFIER`
-- Operators and delimiters: as enumerated in `token.h`
