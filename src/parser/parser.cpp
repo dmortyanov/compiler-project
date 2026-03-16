@@ -121,7 +121,7 @@ std::string Parser::parseTypeName() {
                TokenType::KW_VOID})) {
         return previous().lexeme;
     }
-    report_error(peek(), "Expected type name");
+    report_error(peek(), "Ожидается имя типа");
     return "?";
 }
 
@@ -140,7 +140,7 @@ DeclPtr Parser::parseDeclaration() {
             auto vd = parseVarDecl(type, line, col);
             return vd;
         }
-        report_error(peek(), "Expected declaration");
+        report_error(peek(), "Ожидается объявление");
         synchronize();
         return nullptr;
     } catch (...) {
