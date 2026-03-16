@@ -11,6 +11,7 @@ struct ParseError {
     int line;
     int column;
     std::string message;
+    std::string suggestion; 
 };
 
 struct ErrorMetrics {
@@ -54,7 +55,8 @@ private:
     bool match(TokenType type);
     bool match(std::initializer_list<TokenType> types);
     Token consume(TokenType type, const std::string& message);
-    void report_error(const Token& token, const std::string& message);
+    void report_error(const Token& token, const std::string& message, 
+                  const std::string& suggestion = ""); 
 
     // Error recovery
     void synchronize();

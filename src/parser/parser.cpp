@@ -54,9 +54,10 @@ Token Parser::consume(TokenType type, const std::string& message) {
     return peek();
 }
 
-void Parser::report_error(const Token& token, const std::string& message) {
+void Parser::report_error(const Token& token, const std::string& message,
+                          const std::string& suggestion) {
     if (static_cast<int>(errors_.size()) >= MAX_ERRORS) return;
-    errors_.push_back(ParseError{token.line, token.column, message});
+    errors_.push_back(ParseError{token.line, token.column, message, suggestion}); 
     metrics_.total_errors++;
 }
 
@@ -152,10 +153,10 @@ std::unique_ptr<FunctionDeclNode> Parser::parseFunctionDecl() {
     auto node = std::make_unique<FunctionDeclNode>();
     node->line = peek().line;
     node->column = peek().column;
-    consume(TokenType::KW_FN, "Expected 'fn'");
-    Token name_tok = consume(TokenType::IDENTIFIER, "Expected function name");
+    consume(TokenType::KW_FN, "Ожидается 'fn'");
+    Token name_tok = consume(TokenType::IDENTIFIER, "Ожидается имя функции");
     node->name = name_tok.lexeme;
-    consume(TokenType::LPAREN, "Expected '(' after function name");
+    consume(TokenType::LPAREN, "Ожидается '(' после имени функции");
 
     if (!check(TokenType::RPAREN)) {
         do {
@@ -163,12 +164,12 @@ std::unique_ptr<FunctionDeclNode> Parser::parseFunctionDecl() {
             p.line = peek().line;
             p.column = peek().column;
             p.type_name = parseTypeName();
-            Token pname = consume(TokenType::IDENTIFIER, "Expected parameter name");
+            Token pname = consume(TokenType::IDENTIFIER, "Ожидается имя параметра");
             p.name = pname.lexeme;
             node->parameters.push_back(std::move(p));
         } while (match(TokenType::COMMA));
     }
-    consume(TokenType::RPAREN, "Expected ')' after parameters");
+    consume(TokenType::RPAREN, "Ожидается ')' после имени функции");
 
     if (match(TokenType::ARROW)) {
         node->return_type = parseTypeName();
@@ -184,10 +185,10 @@ std::unique_ptr<StructDeclNode> Parser::parseStructDecl() {
     auto node = std::make_unique<StructDeclNode>();
     node->line = peek().line;
     node->column = peek().column;
-    consume(TokenType::KW_STRUCT, "Expected 'struct'");
-    Token name_tok = consume(TokenType::IDENTIFIER, "Expected struct name");
+    consume(TokenType::KW_STRUCT, "Ожидается 'struct'");
+    Token name_tok = consume(TokenType::IDENTIFIER, "Ожидается имя структуры");
     node->name = name_tok.lexeme;
-    consume(TokenType::LBRACE, "Expected '{' after struct name");
+    consume(TokenType::LBRACE, "Ожидается '{' после имени структуры");
 
     while (!check(TokenType::RBRACE) && !isAtEnd()) {
         int l = peek().line;
@@ -198,7 +199,7 @@ std::unique_ptr<StructDeclNode> Parser::parseStructDecl() {
             node->fields.push_back(std::move(field));
         }
     }
-    consume(TokenType::RBRACE, "Expected '}' after struct body");
+    consume(TokenType::RBRACE, "Ожидается '}' после тела структуры");
     match(TokenType::SEMICOLON);
     return node;
 }
@@ -209,23 +210,21 @@ std::unique_ptr<VarDeclStmtNode> Parser::parseVarDecl(
     node->line = line;
     node->column = col;
     node->type_name = type_name;
-    Token name_tok = consume(TokenType::IDENTIFIER, "Expected variable name");
+    Token name_tok = consume(TokenType::IDENTIFIER, "Ожидается имя функции");
     node->name = name_tok.lexeme;
     if (match(TokenType::ASSIGN)) {
         node->initializer = parseExpression();
     }
-    consume(TokenType::SEMICOLON, "Expected ';' after variable declaration");
+    consume(TokenType::SEMICOLON, "Ожидается ';' после объявления переменной");
     return node;
 }
 
 StmtPtr Parser::parseStatement() {
     if (check(TokenType::LBRACE)) return parseBlock();
-    if (check(TokenType::KW_IF)) return parseIfStmt();
+    if (check(TokenType::KW_IF)) return parseIfStmtUnmatched();
     if (check(TokenType::KW_WHILE)) return parseWhileStmt();
     if (check(TokenType::KW_FOR)) return parseForStmt();
     if (check(TokenType::KW_RETURN)) return parseReturnStmt();
-    if (check(TokenType::KW_IF)) return parseIfStmtUnmatched(); 
-    if (check(TokenType::KW_WHILE)) return parseWhileStmt();
 
     if (match(TokenType::SEMICOLON)) {
         auto empty = std::make_unique<ExprStmtNode>();
@@ -246,7 +245,7 @@ StmtPtr Parser::parseStatement() {
     stmt->line = expr->line;
     stmt->column = expr->column;
     stmt->expression = std::move(expr);
-    consume(TokenType::SEMICOLON, "Expected ';' after expression");
+    consume(TokenType::SEMICOLON, "Ожидается ';' после выражения");
     return stmt;
 }
 
@@ -254,14 +253,14 @@ std::unique_ptr<BlockStmtNode> Parser::parseBlock() {
     auto node = std::make_unique<BlockStmtNode>();
     node->line = peek().line;
     node->column = peek().column;
-    consume(TokenType::LBRACE, "Expected '{'");
+    consume(TokenType::LBRACE, "Ожидается '{'");
     while (!check(TokenType::RBRACE) && !isAtEnd()) {
         auto s = parseStatement();
         if (s) {
             node->statements.push_back(std::move(s));
         }
     }
-    consume(TokenType::RBRACE, "Expected '}'");
+    consume(TokenType::RBRACE, "Ожидается '}'");
     return node;
 }
 
@@ -315,13 +314,13 @@ StmtPtr Parser::parseIfStmtMatched() {
     node->column = peek().column;
     node->is_matched = true;  
     
-    consume(TokenType::KW_IF, "Expected 'if'");
-    consume(TokenType::LPAREN, "Expected '(' after 'if'");
+    consume(TokenType::KW_IF, "Ожидается 'if'");
+    consume(TokenType::LPAREN, "Ожидается '(' после 'if'");
     node->condition = parseExpression();
-    consume(TokenType::RPAREN, "Expected ')' after condition");
+    consume(TokenType::RPAREN, "Ожидается ')' после условия");
     
     node->then_branch = parseMatchedStmt();
-    consume(TokenType::KW_ELSE, "Expected 'else' in matched if");
+    consume(TokenType::KW_ELSE, "Ожидается 'else' в полном if");
     node->else_branch = parseMatchedStmt();
     
     return node;
@@ -333,7 +332,7 @@ StmtPtr Parser::parseExprStmt() {
     node->line = expr->line;
     node->column = expr->column;
     node->expression = std::move(expr);
-    consume(TokenType::SEMICOLON, "Expected ';' after expression");
+    consume(TokenType::SEMICOLON, "Ожидается ';' после выражения");
     return node;
 }
 
@@ -343,10 +342,10 @@ StmtPtr Parser::parseIfStmtUnmatched() {
     node->column = peek().column;
     node->is_matched = false;  
     
-    consume(TokenType::KW_IF, "Expected 'if'");
-    consume(TokenType::LPAREN, "Expected '(' after 'if'");
+    consume(TokenType::KW_IF, "Ожидается 'if'");
+    consume(TokenType::LPAREN, "Ожидается '(' после 'if'");
     node->condition = parseExpression();
-    consume(TokenType::RPAREN, "Expected ')' after condition");
+    consume(TokenType::RPAREN, "Ожидается ')' после условия");
     
     // Сохраняем позицию перед разбором then
     std::size_t after_then_pos = current_;
@@ -358,7 +357,7 @@ StmtPtr Parser::parseIfStmtUnmatched() {
     if (check(TokenType::KW_ELSE)) {
         // Вариант 2: if (expr) MatchedStmt else UnmatchedStmt
         node->then_branch = std::move(then_matched);
-        consume(TokenType::KW_ELSE, "Expected 'else' in if statement");
+        consume(TokenType::KW_ELSE, "Ожидается 'else'");
         node->else_branch = parseUnmatchedStmt();
     } else {
         // Вариант 1: if (expr) Statement (без else)
@@ -375,10 +374,10 @@ StmtPtr Parser::parseWhileStmt() {
     auto node = std::make_unique<WhileStmtNode>();
     node->line = peek().line;
     node->column = peek().column;
-    consume(TokenType::KW_WHILE, "Expected 'while'");
-    consume(TokenType::LPAREN, "Expected '(' after 'while'");
+    consume(TokenType::KW_WHILE, "Ожидается 'while'");
+    consume(TokenType::LPAREN, "Ожидается '(' после 'while'");
     node->condition = parseExpression();
-    consume(TokenType::RPAREN, "Expected ')' after while condition");
+    consume(TokenType::RPAREN, "Ожидается ')' после условия");
     node->body = parseStatement();
     return node;
 }
@@ -387,8 +386,8 @@ StmtPtr Parser::parseForStmt() {
     auto node = std::make_unique<ForStmtNode>();
     node->line = peek().line;
     node->column = peek().column;
-    consume(TokenType::KW_FOR, "Expected 'for'");
-    consume(TokenType::LPAREN, "Expected '(' after 'for'");
+    consume(TokenType::KW_FOR, "Ожидается 'for'");
+    consume(TokenType::LPAREN, "Ожидается '(' после 'for'");
 
     if (match(TokenType::SEMICOLON)) {
         node->init = nullptr;
@@ -412,7 +411,7 @@ StmtPtr Parser::parseForStmt() {
             es->line = expr->line;
             es->column = expr->column;
             es->expression = std::move(expr);
-            consume(TokenType::SEMICOLON, "Expected ';'");
+            consume(TokenType::SEMICOLON, "Ожидается ';'");
             node->init = std::move(es);
         }
     } else {
@@ -421,19 +420,19 @@ StmtPtr Parser::parseForStmt() {
         es->line = expr->line;
         es->column = expr->column;
         es->expression = std::move(expr);
-        consume(TokenType::SEMICOLON, "Expected ';'");
+        consume(TokenType::SEMICOLON, "Ожидается ';'");
         node->init = std::move(es);
     }
 
     if (!check(TokenType::SEMICOLON)) {
         node->condition = parseExpression();
     }
-    consume(TokenType::SEMICOLON, "Expected ';' after for condition");
+    consume(TokenType::SEMICOLON, "Ожидается ';' после условия");
 
     if (!check(TokenType::RPAREN)) {
         node->update = parseExpression();
     }
-    consume(TokenType::RPAREN, "Expected ')' after for clauses");
+    consume(TokenType::RPAREN, "Ожидается ')' после заголовка for");
 
     node->body = parseStatement();
     return node;
@@ -443,11 +442,11 @@ StmtPtr Parser::parseReturnStmt() {
     auto node = std::make_unique<ReturnStmtNode>();
     node->line = peek().line;
     node->column = peek().column;
-    consume(TokenType::KW_RETURN, "Expected 'return'");
+    consume(TokenType::KW_RETURN, "Ожидается 'return'");
     if (!check(TokenType::SEMICOLON)) {
         node->value = parseExpression();
     }
-    consume(TokenType::SEMICOLON, "Expected ';' after return value");
+    consume(TokenType::SEMICOLON, "Ожидается ';' после return");
     return node;
 }
 
@@ -668,7 +667,7 @@ ExprPtr Parser::parsePrimary() {
                     call->arguments.push_back(parseExpression());
                 }
             }
-            consume(TokenType::RPAREN, "Expected ')' after arguments");
+            consume(TokenType::RPAREN, "Ожидается ')' после аргументов");
             ExprPtr base = std::move(call);
             if (match({TokenType::INC, TokenType::DEC})) {
                 auto post = std::make_unique<PostfixExprNode>();
@@ -700,13 +699,13 @@ ExprPtr Parser::parsePrimary() {
         int l = previous().line;
         int c = previous().column;
         auto expr = parseExpression();
-        consume(TokenType::RPAREN, "Expected ')'");
+        consume(TokenType::RPAREN, "Ожидается ')'");
         expr->line = l;
         expr->column = c;
         return expr;
     }
 
-    report_error(peek(), "Expected expression");
+    report_error(peek(), "Ожидается выражение");
     advance();
     auto dummy = std::make_unique<LiteralExprNode>();
     dummy->line = previous().line;
