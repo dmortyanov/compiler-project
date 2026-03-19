@@ -169,7 +169,7 @@ std::unique_ptr<FunctionDeclNode> Parser::parseFunctionDecl() {
             node->parameters.push_back(std::move(p));
         } while (match(TokenType::COMMA));
     }
-    consume(TokenType::RPAREN, "Ожидается ')' после имени функции");
+    consume(TokenType::RPAREN, "Ожидается ')' после параметров");
 
     if (match(TokenType::ARROW)) {
         node->return_type = parseTypeName();
@@ -427,12 +427,12 @@ StmtPtr Parser::parseForStmt() {
     if (!check(TokenType::SEMICOLON)) {
         node->condition = parseExpression();
     }
-    consume(TokenType::SEMICOLON, "Ожидается ';' после условия");
+    consume(TokenType::SEMICOLON, "Ожидается ';' после условия for");
 
     if (!check(TokenType::RPAREN)) {
         node->update = parseExpression();
     }
-    consume(TokenType::RPAREN, "Ожидается ')' после заголовка for");
+    consume(TokenType::RPAREN, "Ожидается ')' после частей for");
 
     node->body = parseStatement();
     return node;
