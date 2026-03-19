@@ -109,6 +109,13 @@ static int cmd_parse(const std::string& input_path,
                   << err.message << "\n";
     }
 
+    for (const auto& err : parser.errors()) {
+    if (!err.suggestion.empty()) {
+        std::cerr << err.line << ":" << err.column << " SUGGESTION: " 
+                  << err.suggestion << "\n";
+    }
+}
+
     if (verbose) {
         const auto& m = parser.metrics();
         std::cerr << "Parse errors: " << m.total_errors << "\n";

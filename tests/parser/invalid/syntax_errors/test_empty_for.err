@@ -1,10 +1,10 @@
-1:17 ERROR Expected '(' after 'for'
-1:17 ERROR Expected expression
-1:19 ERROR Expected ';'
-1:19 ERROR Expected expression
-1:21 ERROR Expected ';' after for condition
-1:21 ERROR Expected expression
-1:22 ERROR Expected ')' after for clauses
-1:22 ERROR Expected expression
-1:22 ERROR Expected ';' after expression
-1:22 ERROR Expected '}'
+1:17 ERROR Ожидается '(' после 'for'
+1:17 ERROR Ожидается выражение
+1:19 ERROR Ожидается ';'
+1:19 ERROR Ожидается выражение
+1:21 ERROR Ожидается ';' после условия for
+1:21 ERROR Ожидается выражение
+1:22 ERROR Ожидается ')' после частей for
+1:22 ERROR Ожидается выражение
+1:22 ERROR Ожидается ';' после выражения
+1:22 ERROR Ожидается '}'

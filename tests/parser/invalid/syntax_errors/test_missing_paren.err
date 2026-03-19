@@ -1,2 +1,2 @@
-1:16 ERROR Expected '(' after 'if'
-1:22 ERROR Expected ')' after if condition
+1:16 ERROR Ожидается '(' после 'if'
+1:22 ERROR Ожидается ')' после условия

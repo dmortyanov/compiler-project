@@ -23,13 +23,6 @@ struct ErrorMetrics {
              : static_cast<double>(recovered) / total_errors;
     }
 };
-struct IfStmtNode : StatementNode {
-    ExprPtr condition;
-    StmtPtr then_branch;
-    StmtPtr else_branch;
-    bool is_matched;  // true для matched, false для unmatched
-};
-
 class Parser {
 public:
     explicit Parser(const std::vector<Token>& tokens);

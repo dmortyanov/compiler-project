@@ -127,6 +127,7 @@ struct IfStmtNode : StatementNode {
     ExprPtr condition;
     StmtPtr then_branch;
     StmtPtr else_branch;
+    bool is_matched = false;
     void accept(ASTVisitor& v) override { v.visit(*this); }
 };
 
