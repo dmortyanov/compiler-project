@@ -1,0 +1,9 @@
+// Invalid: wrong argument type
+fn greet(int count) -> int {
+    return count;
+}
+
+fn main() -> int {
+    int x = greet(true);
+    return x;
+}

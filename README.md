@@ -37,14 +37,66 @@ cmake --build build
 ./build/compiler parse --input examples/factorial.src --verbose
 ```
 
-### Опции парсера
+### Семантический анализ (Sprint 3)
+
+```bash
+# Проверка программы — вывод ошибок
+./build/compiler check --input examples/semantic_demo.src
+
+# С подробным отчётом валидации
+./build/compiler check --input examples/semantic_demo.src --verbose
+
+# С выводом декорированного AST (типы выражений)
+./build/compiler check --input examples/semantic_demo.src --show-types
+
+# Вывод таблицы символов (текст)
+./build/compiler symbols --input examples/factorial.src
+
+# Вывод таблицы символов (JSON)
+./build/compiler symbols --input examples/factorial.src --format json
+
+# Сохранение результатов в файл
+./build/compiler check --input examples/semantic_demo.src --output report.txt
+```
+
+### Примеры ошибок семантического анализа
+
+```
+semantic error: undeclared identifier: undeclared variable 'z'
+  --> program.src:4:18
+  | in function 'main'
+  = note: did you mean 'x'?
+
+semantic error: type mismatch: cannot initialize 'x' of type 'int' with value of type 'bool'
+  --> program.src:3:5
+  | in function 'main'
+  = expected: int
+  = found: bool
+
+semantic error: argument count mismatch: function 'add' expects 2 argument(s), got 1
+  --> program.src:7:13
+  | in function 'main'
+  = expected: 2 arguments
+  = found: 1 arguments
+  = note: function signature: add(int, int) -> int
+```
+
+### Опции
+
+| Команда | Описание |
+|---------|----------|
+| `lex` | Лексический анализ |
+| `parse` | Синтаксический анализ |
+| `check` | Семантический анализ |
+| `symbols` | Вывод таблицы символов |
 
 | Флаг | Описание |
 |------|----------|
 | `--input <file>` | Входной файл |
 | `--output <file>` | Выходной файл (stdout по умолчанию) |
-| `--format text\|dot\|json` | Формат AST (по умолчанию text) |
+| `--format text\|dot\|json` | Формат вывода (по умолчанию text) |
 | `--verbose` | Подробный вывод |
+| `--show-types` | Показать типы в AST (для `check`) |
 
 ## Тесты
 
@@ -54,6 +106,22 @@ ctest -C Debug --output-on-failure
 ```
 
 Windows: `ctest -C Debug --output-on-failure`
+
+### Семантические тесты
+
+```
+tests/semantic/valid/          — программы без ошибок
+  type_compatibility/          — совместимость типов
+  nested_scopes/               — вложенные области видимости
+  complex_programs/            — сложные программы
+
+tests/semantic/invalid/        — программы с ожидаемыми ошибками
+  undeclared_variable/         — необъявленные переменные
+  type_mismatch/               — несовпадение типов
+  duplicate_declaration/       — дублирование объявлений
+  argument_errors/             — ошибки аргументов функций
+  scope_errors/                — ошибки областей видимости
+```
 
 ## Спецификация
 

@@ -10,11 +10,15 @@
 #include "parser/parser.h"
 #include "parser/symbol_table.h"
 #include "preprocessor/preprocessor.h"
+#include "semantic/analyzer.h"
+#include "semantic/errors.h"
 
 static void print_usage() {
     std::cout << "Usage:\n";
-    std::cout << "  compiler lex   --input <file> [--output <file>]\n";
-    std::cout << "  compiler parse --input <file> [--output <file>] [--format text|dot|json] [--verbose]\n";
+    std::cout << "  compiler lex      --input <file> [--output <file>]\n";
+    std::cout << "  compiler parse    --input <file> [--output <file>] [--format text|dot|json] [--verbose]\n";
+    std::cout << "  compiler check    --input <file> [--output <file>] [--verbose] [--show-types]\n";
+    std::cout << "  compiler symbols  --input <file> [--format text|json] [--output <file>]\n";
 }
 
 static std::string read_source(const std::string& path) {
@@ -159,6 +163,112 @@ static int cmd_parse(const std::string& input_path,
     return 0;
 }
 
+// ---------------------------------------------------------------
+// Sprint 3: semantic check command
+// ---------------------------------------------------------------
+static int cmd_check(const std::string& input_path,
+                     const std::string& output_path,
+                     bool verbose, bool show_types) {
+    std::string source = read_source(input_path);
+    if (source.empty()) {
+        std::ifstream test(input_path);
+        if (!test) {
+            std::cerr << "Failed to read input file: " << input_path << "\n";
+            return 1;
+        }
+    }
+
+    auto tokens = tokenize(source, true);
+
+    Parser parser(tokens);
+    auto ast = parser.parse();
+
+    if (!parser.errors().empty()) {
+        for (const auto& err : parser.errors()) {
+            std::cerr << err.line << ":" << err.column << " PARSE ERROR: "
+                      << err.message << "\n";
+        }
+        std::cerr << "Cannot run semantic analysis: parse errors present\n";
+        return 1;
+    }
+
+    SemanticAnalyzer analyzer;
+    analyzer.analyze(*ast);
+
+    std::string output;
+
+    // Error report
+    output += format_error_report(analyzer.get_errors());
+
+    // Verbose: validation report
+    if (verbose) {
+        output += "\n" + analyzer.validation_report();
+    }
+
+    // Decorated AST with types
+    if (show_types) {
+        output += "\n=== Decorated AST ===\n";
+        output += analyzer.dump_decorated_ast(*ast);
+    }
+
+    if (output_path.empty()) {
+        std::cout << output;
+    } else if (!write_output(output_path, output)) {
+        std::cerr << "Failed to write output file: " << output_path << "\n";
+        return 1;
+    }
+
+    return analyzer.get_errors().empty() ? 0 : 1;
+}
+
+// ---------------------------------------------------------------
+// Sprint 3: symbol table dump command
+// ---------------------------------------------------------------
+static int cmd_symbols(const std::string& input_path,
+                       const std::string& output_path,
+                       const std::string& format) {
+    std::string source = read_source(input_path);
+    if (source.empty()) {
+        std::ifstream test(input_path);
+        if (!test) {
+            std::cerr << "Failed to read input file: " << input_path << "\n";
+            return 1;
+        }
+    }
+
+    auto tokens = tokenize(source, true);
+
+    Parser parser(tokens);
+    auto ast = parser.parse();
+
+    if (!parser.errors().empty()) {
+        for (const auto& err : parser.errors()) {
+            std::cerr << err.line << ":" << err.column << " PARSE ERROR: "
+                      << err.message << "\n";
+        }
+        return 1;
+    }
+
+    SemanticAnalyzer analyzer;
+    analyzer.analyze(*ast);
+
+    std::string output;
+    if (format == "json") {
+        output = analyzer.get_symbol_table().dump_json();
+        output += "\n";
+    } else {
+        output = analyzer.get_symbol_table().dump_text();
+    }
+
+    if (output_path.empty()) {
+        std::cout << output;
+    } else if (!write_output(output_path, output)) {
+        std::cerr << "Failed to write output file: " << output_path << "\n";
+        return 1;
+    }
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         print_usage();
@@ -170,6 +280,7 @@ int main(int argc, char** argv) {
     std::string output_path;
     std::string format = "text";
     bool verbose = false;
+    bool show_types = false;
 
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -181,6 +292,8 @@ int main(int argc, char** argv) {
             format = argv[++i];
         } else if (arg == "--verbose") {
             verbose = true;
+        } else if (arg == "--show-types") {
+            show_types = true;
         }
     }
 
@@ -194,6 +307,12 @@ int main(int argc, char** argv) {
     }
     if (command == "parse") {
         return cmd_parse(input_path, output_path, format, verbose);
+    }
+    if (command == "check") {
+        return cmd_check(input_path, output_path, verbose, show_types);
+    }
+    if (command == "symbols") {
+        return cmd_symbols(input_path, output_path, format);
     }
 
     print_usage();

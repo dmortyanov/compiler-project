@@ -1,0 +1,61 @@
+// Semantic analysis demo: showcases type checking, scopes, function calls
+
+struct Point {
+    int x;
+    int y;
+};
+
+fn distance_sq(int x1, int y1, int x2, int y2) -> int {
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    return dx * dx + dy * dy;
+}
+
+fn abs_val(int n) -> int {
+    if (n < 0) {
+        return -n;
+    }
+    return n;
+}
+
+fn max(int a, int b) -> int {
+    if (a > b) {
+        return a;
+    }
+    return b;
+}
+
+fn sum_range(int start, int end) -> int {
+    int total = 0;
+    for (int i = start; i <= end; i = i + 1) {
+        total = total + i;
+    }
+    return total;
+}
+
+fn mixed_types(int a, float b) -> float {
+    float result = a + b;
+    return result;
+}
+
+fn main() -> int {
+    int dist = distance_sq(0, 0, 3, 4);
+    int a = abs_val(-42);
+    int m = max(10, 20);
+    int s = sum_range(1, 100);
+
+    float f = mixed_types(5, 3.14);
+
+    bool flag = dist > 0;
+    bool check = flag && (a > 0);
+
+    if (check) {
+        int temp = m + s;
+    }
+
+    while (dist > 0) {
+        dist = dist - 1;
+    }
+
+    return 0;
+}

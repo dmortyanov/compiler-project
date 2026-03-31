@@ -1,0 +1,26 @@
+// Valid: basic type compatibility (int, float, bool)
+fn add(int a, int b) -> int {
+    int result = a + b;
+    return result;
+}
+
+fn convert(int x) -> float {
+    float y = x;
+    return y;
+}
+
+fn logic(bool a, bool b) -> bool {
+    bool c = a && b;
+    bool d = a || b;
+    bool e = !a;
+    return c;
+}
+
+fn main() -> int {
+    int x = 10;
+    int y = 20;
+    int sum = add(x, y);
+    float f = convert(sum);
+    bool flag = logic(true, false);
+    return 0;
+}

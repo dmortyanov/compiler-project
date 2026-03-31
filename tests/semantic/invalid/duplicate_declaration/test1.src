@@ -1,0 +1,6 @@
+// Invalid: duplicate declaration in same scope
+fn main() -> int {
+    int x = 1;
+    int x = 2;
+    return x;
+}

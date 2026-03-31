@@ -1,0 +1,18 @@
+// Valid: nested scopes
+fn outer() -> int {
+    int x = 1;
+    {
+        int y = 2;
+        int z = x + y;
+    }
+    {
+        int y = 10;
+        int w = x + y;
+    }
+    return x;
+}
+
+fn main() -> int {
+    int a = outer();
+    return a;
+}

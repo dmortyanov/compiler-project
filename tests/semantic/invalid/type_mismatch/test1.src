@@ -1,0 +1,5 @@
+// Invalid: type mismatch in assignment
+fn main() -> int {
+    int x = true;
+    return x;
+}

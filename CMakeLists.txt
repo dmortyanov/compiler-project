@@ -18,6 +18,11 @@ add_library(compiler_core
     src/parser/symbol_table.cpp
     src/preprocessor/preprocessor.cpp
     src/utils/file_utils.cpp
+    # Sprint 3: semantic analysis
+    src/semantic/type_system.cpp
+    src/semantic/symbol_table.cpp
+    src/semantic/errors.cpp
+    src/semantic/analyzer.cpp
 )
 target_include_directories(compiler_core PUBLIC src)
 
@@ -65,4 +70,19 @@ add_test(
     NAME integration_examples
     COMMAND integration_test_runner
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/integration/examples"
+)
+
+# Sprint 3: semantic test runner
+add_executable(semantic_test_runner tests/test_runner/semantic_test_runner.cpp)
+target_link_libraries(semantic_test_runner PRIVATE compiler_core)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+    target_link_libraries(semantic_test_runner PRIVATE stdc++fs)
+endif()
+
+add_test(
+    NAME semantic_tests
+    COMMAND semantic_test_runner
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/semantic/valid"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/semantic/invalid"
 )

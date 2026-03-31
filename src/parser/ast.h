@@ -60,7 +60,9 @@ struct ASTNode {
     virtual void accept(ASTVisitor& visitor) = 0;
 };
 
-struct ExpressionNode : virtual ASTNode {};
+struct ExpressionNode : virtual ASTNode {
+    std::string resolved_type;  // filled by semantic analyzer (Sprint 3)
+};
 struct StatementNode : virtual ASTNode {};
 struct DeclarationNode : virtual ASTNode {};
 

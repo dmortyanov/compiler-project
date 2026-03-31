@@ -1,0 +1,25 @@
+// Valid: complex program — factorial with struct
+struct Counter {
+    int value;
+    int limit;
+};
+
+fn factorial(int n) -> int {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+fn compute(int start, int end) -> int {
+    int sum = 0;
+    for (int i = start; i < end; i = i + 1) {
+        sum = sum + factorial(i);
+    }
+    return sum;
+}
+
+fn main() -> int {
+    int result = compute(1, 6);
+    return result;
+}
