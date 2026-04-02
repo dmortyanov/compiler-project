@@ -26,20 +26,17 @@ inline std::string symbol_kind_str(SymbolKind k) {
 // ---------------------------------------------------------------
 struct Symbol {
     std::string name;
-    Type* type = nullptr;           // resolved Type*
+    Type* type = nullptr;
     SymbolKind kind = SymbolKind::Variable;
     int decl_line = 0;
     int decl_column = 0;
-    bool initialized = false;       // has initializer / is param
+    bool initialized = false;
 
-    // For functions — cached for quick access
     std::vector<FunctionParam> params;
     std::string return_type_name;
 
-    // For structs
     std::vector<StructField> fields;
 
-    // Stack layout (for future code-gen)
     int stack_offset = 0;
 };
 
@@ -50,9 +47,9 @@ struct Scope {
     int id = 0;
     int parent_id = -1;
     int depth = 0;
-    std::string label;              // "global", "function:foo", "block", "struct:Bar"
+    std::string label;
     std::unordered_map<std::string, Symbol> symbols;
-    int next_offset = 0;            // next stack offset within scope
+    int next_offset = 0;
 };
 
 // ---------------------------------------------------------------
@@ -62,25 +59,19 @@ class SemanticSymbolTable {
 public:
     SemanticSymbolTable();
 
-    // Scope management
     void enter_scope(const std::string& label = "block");
     void exit_scope();
     int  current_depth() const;
     const std::string& current_label() const;
+    bool insert(const Symbol& sym);
+    Symbol* lookup(const std::string& name);
+    Symbol* lookup_local(const std::string& name);
 
-    // Symbol operations
-    bool insert(const Symbol& sym);               // false if duplicate
-    Symbol* lookup(const std::string& name);       // current → outer
-    Symbol* lookup_local(const std::string& name); // current scope only
-
-    // Access
     const std::vector<Scope>& scopes() const { return scopes_; }
     int current_scope_id() const { return current_; }
 
-    // Dump (text)
     std::string dump_text() const;
 
-    // Dump (json)
     std::string dump_json() const;
 
 private:

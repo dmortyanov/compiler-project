@@ -9,7 +9,7 @@ TypeRegistry::TypeRegistry() {
     float_  = make(TypeKind::Float,  "float",  8);
     bool_   = make(TypeKind::Bool,   "bool",   1);
     void_   = make(TypeKind::Void,   "void",   0);
-    string_ = make(TypeKind::String, "string", 8);  // pointer size
+    string_ = make(TypeKind::String, "string", 8);
     error_  = make(TypeKind::Error,  "<error>", 0);
 }
 
@@ -22,22 +22,21 @@ Type* TypeRegistry::make(TypeKind k, const std::string& n, int sz) {
 }
 
 Type* TypeRegistry::resolve(const std::string& name) const {
-    if (name.empty()) return void_;          // fn without "-> Type" = void
+    if (name.empty()) return void_;
     auto it = named_types_.find(name);
     if (it != named_types_.end()) return it->second;
-    return nullptr;                          // unknown type
+    return nullptr;
 }
 
 Type* TypeRegistry::register_struct(const std::string& name,
                                     const std::vector<StructField>& fields) {
     auto t = std::make_unique<Type>(TypeKind::Struct, name, 0);
     t->fields = fields;
-    // estimate size
     int sz = 0;
     for (const auto& f : fields) {
         Type* ft = resolve(f.type_name);
         if (ft) sz += ft->size_bytes;
-        else    sz += 4;  // unknown => assume 4
+        else    sz += 4;
     }
     t->size_bytes = sz;
     Type* ptr = t.get();
@@ -54,18 +53,15 @@ Type* TypeRegistry::register_function(const std::string& name,
     t->return_type_name = return_type;
     Type* ptr = t.get();
     owned_.push_back(std::move(t));
-    // Don't overwrite named_types_ for functions — they share the identifier
-    // namespace via the symbol table, not the type namespace.
     return ptr;
 }
 
 bool TypeRegistry::is_compatible(const Type* from, const Type* to) const {
     if (!from || !to) return false;
-    if (from->is_error() || to->is_error()) return true;   // suppress cascade
+    if (from->is_error() || to->is_error()) return true;
     if (from == to) return true;
     if (*from == *to) return true;
 
-    // int -> float widening
     if (from->kind == TypeKind::Int && to->kind == TypeKind::Float) return true;
 
     return false;

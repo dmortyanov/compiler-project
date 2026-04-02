@@ -1,1 +1,1 @@
-EXPECT_ERROR: invalid return type
+EXPECT_ERROR: неверный тип возврата

@@ -47,3 +47,6 @@ ast.dot
 ast.json
 ast.png
 ast.txt
+translate.py
+translate_expected.py
+

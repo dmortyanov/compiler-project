@@ -1,1 +1,1 @@
-EXPECT_ERROR: duplicate declaration
+EXPECT_ERROR: повторное объявление

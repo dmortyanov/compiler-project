@@ -23,20 +23,20 @@ enum class SemanticErrorKind {
 
 inline std::string error_kind_str(SemanticErrorKind k) {
     switch (k) {
-        case SemanticErrorKind::UndeclaredIdentifier:   return "undeclared identifier";
-        case SemanticErrorKind::DuplicateDeclaration:    return "duplicate declaration";
-        case SemanticErrorKind::TypeMismatch:            return "type mismatch";
-        case SemanticErrorKind::ArgCountMismatch:        return "argument count mismatch";
-        case SemanticErrorKind::ArgTypeMismatch:         return "argument type mismatch";
-        case SemanticErrorKind::InvalidReturnType:       return "invalid return type";
-        case SemanticErrorKind::InvalidConditionType:    return "invalid condition type";
-        case SemanticErrorKind::UseBeforeDeclaration:    return "use before declaration";
-        case SemanticErrorKind::InvalidAssignmentTarget: return "invalid assignment target";
-        case SemanticErrorKind::UnknownType:             return "unknown type";
-        case SemanticErrorKind::InvalidOperator:         return "invalid operator";
-        case SemanticErrorKind::MissingReturn:           return "missing return statement";
+        case SemanticErrorKind::UndeclaredIdentifier:   return "необъявленный идентификатор";
+        case SemanticErrorKind::DuplicateDeclaration:    return "повторное объявление";
+        case SemanticErrorKind::TypeMismatch:            return "несовместимость типов";
+        case SemanticErrorKind::ArgCountMismatch:        return "несовпадение количества аргументов";
+        case SemanticErrorKind::ArgTypeMismatch:         return "несовпадение типа аргумента";
+        case SemanticErrorKind::InvalidReturnType:       return "неверный тип возврата";
+        case SemanticErrorKind::InvalidConditionType:    return "неверный тип условия";
+        case SemanticErrorKind::UseBeforeDeclaration:    return "использование до объявления";
+        case SemanticErrorKind::InvalidAssignmentTarget: return "недопустимая цель присваивания";
+        case SemanticErrorKind::UnknownType:             return "неизвестный тип";
+        case SemanticErrorKind::InvalidOperator:         return "недопустимый оператор";
+        case SemanticErrorKind::MissingReturn:           return "отсутствует оператор return";
     }
-    return "unknown error";
+    return "неизвестная ошибка";
 }
 
 // ---------------------------------------------------------------
@@ -48,10 +48,10 @@ struct SemanticError {
     std::string filename;
     int line = 0;
     int column = 0;
-    std::string context;             // e.g. "in function 'foo'"
+    std::string context;             // например "в функции 'foo'"
     std::string expected_type;
     std::string actual_type;
-    std::string suggestion;          // e.g. "did you mean 'y'?"
+    std::string suggestion;          // например "возможно, вы имели в виду 'y'?"
 };
 
 // ---------------------------------------------------------------

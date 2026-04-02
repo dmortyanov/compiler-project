@@ -1,4 +1,4 @@
-# MiniCompiler — User Guide (Sprint 1–2)
+# MiniCompiler — User Guide (Sprint 1–3)
 ---
 
 ## 1) Сборка проекта (Windows / Visual Studio generator)
@@ -15,6 +15,7 @@ cmake --build build --config Debug
 - `build\Debug\lexer_test_runner.exe`
 - `build\Debug\parser_test_runner.exe`
 - `build\Debug\integration_test_runner.exe`
+- `build\Debug\semantic_test_runner.exe`
 
 ---
 
@@ -145,7 +146,7 @@ fn main() -> int {
 
 ## 5) Тесты (CTest) + как увидеть вывод по каждому файлу
 
-### 5.1 Запуск всех тестов
+### 5.1 Запуск всех тестов (лексер + парсер + интеграция + семантика)
 
 ```powershell
 cd build
@@ -160,11 +161,205 @@ ctest -C Debug -VV
 ctest -C Debug -R lexer_tests -VV
 ctest -C Debug -R parser_tests -VV
 ctest -C Debug -R integration_examples -VV
+ctest -C Debug -R semantic_tests -VV
 ```
 
 Что проверяется:
-- `lexer_tests`: `tests/lexer/valid` и `tests/lexer/invalid`
-- `parser_tests`: `tests/parser/valid` и `tests/parser/invalid`
-- `integration_examples`: end-to-end на `tests/integration/examples`
+
+| Набор                  | Каталоги тестов                                    | Кол-во |
+|------------------------|----------------------------------------------------|--------|
+| `lexer_tests`          | `tests/lexer/valid`, `tests/lexer/invalid`         | 34     |
+| `parser_tests`         | `tests/parser/valid`, `tests/parser/invalid`       | 33     |
+| `integration_examples` | `tests/integration/examples`                       | —      |
+| `semantic_tests`       | `tests/semantic/valid`, `tests/semantic/invalid`   | 10     |
+
+Семантические тесты:
+- **valid/** (3 теста): `type_compatibility`, `nested_scopes`, `complex_programs`
+- **invalid/** (7 тестов): `undeclared_variable`, `type_mismatch` ×2, `duplicate_declaration`, `argument_errors` ×2, `scope_errors`
+
+### 5.3 Прямой запуск semantic test runner (без CTest)
+
+```powershell
+.\build\Debug\semantic_test_runner.exe tests\semantic\valid tests\semantic\invalid
+```
+
+---
+
+## 6) Команда `check` — семантический анализ (Sprint 3)
+
+Полный пайплайн: **preprocessor → lexer → parser → semantic analyzer**.  
+Проверяет типы, области видимости, объявления переменных, вызовы функций.
+
+Общий вид:
+
+```powershell
+.\build\Debug\compiler.exe check --input <file> [--output <file>] [--verbose] [--show-types]
+```
+
+### 6.1 Базовая проверка (вывод ошибок)
+
+```powershell
+.\build\Debug\compiler.exe check --input examples\semantic_demo.src
+```
+
+Если ошибок нет — пустой отчёт, exit code `0`.  
+Если есть ошибки — список в Rust-стиле + exit code `1`.
+
+### 6.2 `--verbose` — отчёт валидации
+
+```powershell
+.\build\Debug\compiler.exe check --input examples\semantic_demo.src --verbose
+```
+
+Дополнительно печатается:
+- количество ошибок / предупреждений
+- символы по областям видимости (scopes)
+- статистика типов и раскладка памяти (смещения стека)
+
+### 6.3 `--show-types` — декорированное AST
+
+```powershell
+.\build\Debug\compiler.exe check --input examples\semantic_demo.src --show-types
+```
+
+К выводу добавляется секция `=== Decorated AST ===` — AST, где каждый узел
+выражения аннотирован выведенным типом (`resolved_type`).
+
+### 6.4 Всё вместе
+
+```powershell
+.\build\Debug\compiler.exe check --input examples\semantic_demo.src --verbose --show-types
+```
+
+### 6.5 Сохранение отчёта в файл
+
+```powershell
+.\build\Debug\compiler.exe check --input examples\semantic_demo.src --verbose --show-types --output check_report.txt
+```
+
+---
+
+## 7) Команда `symbols` — дамп таблицы символов (Sprint 3)
+
+Выводит содержимое таблицы символов после семантического анализа.
+
+Общий вид:
+
+```powershell
+.\build\Debug\compiler.exe symbols --input <file> [--format text|json] [--output <file>]
+```
+
+### 7.1 Текстовый дамп (по умолчанию)
+
+```powershell
+.\build\Debug\compiler.exe symbols --input examples\semantic_demo.src
+```
+
+### 7.2 JSON
+
+```powershell
+.\build\Debug\compiler.exe symbols --input examples\semantic_demo.src --format json
+```
+
+### 7.3 Сохранение в файл
+
+```powershell
+.\build\Debug\compiler.exe symbols --input examples\semantic_demo.src --format json --output symbols.json
+```
+
+```powershell
+.\build\Debug\compiler.exe symbols --input examples\semantic_demo.src --output symbols.txt
+```
+
+---
+
+## 8) Демонстрация семантических ошибок
+
+### 8.1 Необъявленная переменная
+
+Файл `tests\semantic\invalid\undeclared_variable\test1.src`:
+
+```c
+// Invalid: undeclared variable
+fn main() -> int {
+    int x = 10;
+    int y = x + z;   // z не объявлена!
+    return y;
+}
+```
+
+```powershell
+.\build\Debug\compiler.exe check --input tests\semantic\invalid\undeclared_variable\test1.src
+```
+
+> Ожидаемый результат: ошибка `undeclared variable 'z'` с указанием позиции.
+
+### 8.2 Несовместимость типов
+
+Файл `tests\semantic\invalid\type_mismatch\test1.src`:
+
+```c
+// Invalid: type mismatch in assignment
+fn main() -> int {
+    int x = true;    // bool → int: type mismatch
+    return x;
+}
+```
+
+```powershell
+.\build\Debug\compiler.exe check --input tests\semantic\invalid\type_mismatch\test1.src
+```
+
+### 8.3 Корректная программа (с отчётом)
+
+Файл `tests\semantic\valid\complex_programs\test1.src` — факториал + struct:
+
+```powershell
+.\build\Debug\compiler.exe check --input tests\semantic\valid\complex_programs\test1.src --verbose --show-types
+```
+
+> Ожидаемый результат: 0 ошибок, полный отчёт со всеми типами и scopes.
+
+### 8.4 Проверка всех invalid-тестов одной серией
+
+```powershell
+.\build\Debug\compiler.exe check --input tests\semantic\invalid\undeclared_variable\test1.src
+.\build\Debug\compiler.exe check --input tests\semantic\invalid\type_mismatch\test1.src
+.\build\Debug\compiler.exe check --input tests\semantic\invalid\type_mismatch\test2.src
+.\build\Debug\compiler.exe check --input tests\semantic\invalid\duplicate_declaration\test1.src
+.\build\Debug\compiler.exe check --input tests\semantic\invalid\argument_errors\test1.src
+.\build\Debug\compiler.exe check --input tests\semantic\invalid\argument_errors\test2.src
+.\build\Debug\compiler.exe check --input tests\semantic\invalid\scope_errors\test1.src
+```
+
+---
+
+## 9) Полный демо-пайплайн (`semantic_demo.src`)
+
+Файл `examples\semantic_demo.src` покрывает все возможности Sprint 3:
+structs, несколько функций, вложенные области видимости, вызовы функций,
+смешанные типы, циклы `for`/`while`, условия `if`.
+
+Команды для полного прогона всех стадий:
+
+```powershell
+# 1. Лексер — поток токенов
+.\build\Debug\compiler.exe lex --input examples\semantic_demo.src
+
+# 2. Парсер — AST (текст)
+.\build\Debug\compiler.exe parse --input examples\semantic_demo.src
+
+# 3. Парсер — AST (DOT для Graphviz)
+.\build\Debug\compiler.exe parse --input examples\semantic_demo.src --format dot --output semantic_ast.dot
+
+# 4. Семантическая проверка (полный отчёт + типы)
+.\build\Debug\compiler.exe check --input examples\semantic_demo.src --verbose --show-types
+
+# 5. Таблица символов (текст)
+.\build\Debug\compiler.exe symbols --input examples\semantic_demo.src
+
+# 6. Таблица символов (JSON в файл)
+.\build\Debug\compiler.exe symbols --input examples\semantic_demo.src --format json --output symbols.json
+```
 
 ---

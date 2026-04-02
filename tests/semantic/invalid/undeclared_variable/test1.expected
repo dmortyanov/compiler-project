@@ -1,1 +1,1 @@
-EXPECT_ERROR: undeclared identifier
+EXPECT_ERROR: необъявленный идентификатор
