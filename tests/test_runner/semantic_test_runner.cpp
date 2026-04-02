@@ -124,33 +124,16 @@ static TestResult run_invalid_test(const fs::path& src_path,
         return result;
     }
 
-    // Read expected error pattern
-    std::string expected_raw = trim(read_file(expected_path));
-    std::string expected_pattern;
-    if (expected_raw.substr(0, 13) == "EXPECT_ERROR:") {
-        expected_pattern = trim(expected_raw.substr(13));
-    } else {
-        expected_pattern = expected_raw;
-    }
+    // Read expected full output
+    std::string output = format_error_report(analyzer.get_errors());
+    std::string expected = read_file(expected_path);
 
-    // Check that at least one error matches
-    std::string all_errors = format_error_report(analyzer.get_errors());
-    bool found = false;
-    for (const auto& err : analyzer.get_errors()) {
-        std::string kind_str = error_kind_str(err.kind);
-        if (kind_str.find(expected_pattern) != std::string::npos ||
-            expected_pattern.find(kind_str) != std::string::npos) {
-            found = true;
-            break;
-        }
-    }
-
-    if (found) {
+    if (trim(output) == trim(expected)) {
         result.passed = true;
     } else {
         result.passed = false;
-        result.details = "Expected error kind '" + expected_pattern +
-                        "' not found in:\n" + all_errors;
+        result.details = "Output mismatch:\n  Expected:\n" + trim(expected) +
+                        "\n  Got:\n" + trim(output);
     }
     return result;
 }

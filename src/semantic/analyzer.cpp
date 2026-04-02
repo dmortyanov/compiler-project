@@ -180,7 +180,8 @@ void SemanticAnalyzer::visit(FunctionDeclNode& node) {
         Type* pt = resolve_type_name(p.type_name, p.line, p.column);
         if (pt->is_void()) {
             error(SemanticErrorKind::TypeMismatch, p.line, p.column,
-                  "параметр '" + p.name + "' не может иметь тип void");
+                  "параметр '" + p.name + "' не может иметь тип void",
+                  "", "", "попробуйте использовать типы: int, float, bool");
         }
         Symbol sym;
         sym.name = p.name;
@@ -224,7 +225,8 @@ void SemanticAnalyzer::visit(StructDeclNode& node) {
         Type* ft = resolve_type_name(f->type_name, f->line, f->column);
         if (ft->is_void()) {
             error(SemanticErrorKind::TypeMismatch, f->line, f->column,
-                  "поле структуры '" + f->name + "' не может иметь тип void");
+                  "поле структуры '" + f->name + "' не может иметь тип void",
+                  "", "", "попробуйте использовать типы: int, float, bool");
         }
         if (field_names.count(f->name)) {
             error(SemanticErrorKind::DuplicateDeclaration,
@@ -253,7 +255,8 @@ void SemanticAnalyzer::visit(VarDeclStmtNode& node) {
 
     if (var_type->is_void()) {
         error(SemanticErrorKind::TypeMismatch, node.line, node.column,
-              "переменная '" + node.name + "' не может иметь тип void");
+              "переменная '" + node.name + "' не может иметь тип void",
+              "", "", "попробуйте использовать типы: int, float, bool");
     }
 
     // Check initializer
@@ -268,7 +271,8 @@ void SemanticAnalyzer::visit(VarDeclStmtNode& node) {
                       "невозможно инициализировать '" + node.name + "' типа '" +
                       var_type->name + "' значением типа '" +
                       init_type->name + "'",
-                      var_type->name, init_type->name);
+                      var_type->name, init_type->name,
+                      "приведите правое значение к типу '" + var_type->name + "'");
             }
         }
     }
@@ -321,7 +325,8 @@ void SemanticAnalyzer::visit(IfStmtNode& node) {
                 error(SemanticErrorKind::InvalidConditionType,
                       node.line, node.column,
                       "условие в 'if' должно иметь логический или числовой тип",
-                      "bool", cond_type->name);
+                      "bool", cond_type->name,
+                      "добавьте операцию сравнения, например '" + node.condition->resolved_type + " != 0'");
             }
         }
     }
@@ -341,7 +346,8 @@ void SemanticAnalyzer::visit(WhileStmtNode& node) {
                 error(SemanticErrorKind::InvalidConditionType,
                       node.line, node.column,
                       "условие в 'while' должно иметь логический или числовой тип",
-                      "bool", cond_type->name);
+                      "bool", cond_type->name,
+                      "добавьте операцию сравнения, например '" + node.condition->resolved_type + " != 0'");
             }
         }
     }
@@ -366,7 +372,8 @@ void SemanticAnalyzer::visit(ForStmtNode& node) {
                 error(SemanticErrorKind::InvalidConditionType,
                       node.line, node.column,
                       "условие в 'for' должно иметь логический или числовой тип",
-                      "bool", cond_type->name);
+                      "bool", cond_type->name,
+                      "добавьте операцию сравнения, например '" + node.condition->resolved_type + " != 0'");
             }
         }
     }
@@ -392,7 +399,8 @@ void SemanticAnalyzer::visit(ReturnStmtNode& node) {
                   node.line, node.column,
                   "void-функция '" + current_function_ +
                   "' не должна возвращать значение",
-                  "void", val_type ? val_type->name : "?");
+                  "void", val_type ? val_type->name : "?",
+                  "уберите значение из оператора return");
         } else if (val_type && current_return_type_ &&
                    !val_type->is_error() && !current_return_type_->is_error()) {
             if (!types_.is_compatible(val_type, current_return_type_)) {
@@ -400,7 +408,8 @@ void SemanticAnalyzer::visit(ReturnStmtNode& node) {
                       node.line, node.column,
                       "несовпадение типа возврата в функции '" +
                       current_function_ + "'",
-                      current_return_type_->name, val_type->name);
+                      current_return_type_->name, val_type->name,
+                      "возвращаемое значение должно соответствовать сигнатуре функции");
             }
         }
     } else {
@@ -411,7 +420,8 @@ void SemanticAnalyzer::visit(ReturnStmtNode& node) {
                   node.line, node.column,
                   "не-void функция '" + current_function_ +
                   "' должна возвращать значение",
-                  current_return_type_->name, "void");
+                  current_return_type_->name, "void",
+                  "укажите возвращаемое значение в операторе return");
         }
     }
 }
@@ -493,7 +503,8 @@ void SemanticAnalyzer::visit(BinaryExprNode& node) {
             error(SemanticErrorKind::TypeMismatch,
                   node.line, node.column,
                   "бинарный оператор '" + op + "' требует числовых операндов",
-                  "numeric", left_type->name + " and " + right_type->name);
+                  "numeric", left_type->name + " and " + right_type->name,
+                  "оба операнда должны быть числами");
             last_expr_type_ = types_.type_error();
             node.resolved_type = "<error>";
             return;
@@ -503,7 +514,8 @@ void SemanticAnalyzer::visit(BinaryExprNode& node) {
             error(SemanticErrorKind::TypeMismatch,
                   node.line, node.column,
                   "оператор '%' требует целочисленных операндов",
-                  "int", left_type->name + " and " + right_type->name);
+                  "int", left_type->name + " and " + right_type->name,
+                  "остаток от деления работает только с типом int");
             last_expr_type_ = types_.type_error();
             node.resolved_type = "<error>";
             return;
@@ -528,7 +540,8 @@ void SemanticAnalyzer::visit(BinaryExprNode& node) {
             error(SemanticErrorKind::TypeMismatch,
                   node.line, node.column,
                   "сравнение '" + op + "' требует числовых операндов",
-                  "numeric", left_type->name + " and " + right_type->name);
+                  "numeric", left_type->name + " and " + right_type->name,
+                  "оператор сравнения применим только к числам");
             last_expr_type_ = types_.type_error();
             node.resolved_type = "<error>";
             return;
@@ -544,7 +557,8 @@ void SemanticAnalyzer::visit(BinaryExprNode& node) {
             error(SemanticErrorKind::TypeMismatch,
                   node.line, node.column,
                   "логический оператор '" + op + "' требует логических операндов",
-                  "bool", left_type->name + " and " + right_type->name);
+                  "bool", left_type->name + " and " + right_type->name,
+                  "логические операторы (&&, ||) работают только с типом bool");
             last_expr_type_ = types_.type_error();
             node.resolved_type = "<error>";
             return;
@@ -582,7 +596,8 @@ void SemanticAnalyzer::visit(UnaryExprNode& node) {
             error(SemanticErrorKind::TypeMismatch,
                   node.line, node.column,
                   "унарный '-' требует числового операнда",
-                  "numeric", operand_type->name);
+                  "numeric", operand_type->name,
+                  "для изменения знака используйте числовой тип");
             last_expr_type_ = types_.type_error();
             node.resolved_type = "<error>";
             return;
@@ -597,7 +612,8 @@ void SemanticAnalyzer::visit(UnaryExprNode& node) {
             error(SemanticErrorKind::TypeMismatch,
                   node.line, node.column,
                   "унарный '!' требует логического операнда",
-                  "bool", operand_type->name);
+                  "bool", operand_type->name,
+                  "оператор '!' работает только с типом bool");
             last_expr_type_ = types_.type_error();
             node.resolved_type = "<error>";
             return;
@@ -613,7 +629,8 @@ void SemanticAnalyzer::visit(UnaryExprNode& node) {
             error(SemanticErrorKind::TypeMismatch,
                   node.line, node.column,
                   "префиксный '" + op + "' требует числового операнда",
-                  "numeric", operand_type->name);
+                  "numeric", operand_type->name,
+                  "инкремент/декремент доступен только для чисел");
             last_expr_type_ = types_.type_error();
             node.resolved_type = "<error>";
             return;
@@ -647,7 +664,8 @@ void SemanticAnalyzer::visit(PostfixExprNode& node) {
         error(SemanticErrorKind::TypeMismatch,
               node.line, node.column,
               "постфиксный '" + node.op + "' требует числового операнда",
-              "numeric", operand_type->name);
+              "numeric", operand_type->name,
+              "инкремент/декремент доступен только для чисел");
         last_expr_type_ = types_.type_error();
         node.resolved_type = "<error>";
         return;
@@ -679,7 +697,8 @@ void SemanticAnalyzer::visit(CallExprNode& node) {
         error(SemanticErrorKind::TypeMismatch,
               node.line, node.column,
               "'" + node.callee + "' не является функцией",
-              "function", symbol_kind_str(fn_sym->kind));
+              "function", symbol_kind_str(fn_sym->kind),
+              "вы не можете вызывать как функцию этот элемент");
         for (auto& a : node.arguments) a->accept(*this);
         last_expr_type_ = types_.type_error();
         node.resolved_type = "<error>";
@@ -741,7 +760,8 @@ void SemanticAnalyzer::visit(AssignmentExprNode& node) {
     if (!ident) {
         error(SemanticErrorKind::InvalidAssignmentTarget,
               node.line, node.column,
-              "левая часть присваивания не является переменной");
+              "левая часть присваивания не является переменной",
+              "", "", "используйте имя переменной слева от знака '='");
         // Still visit both sides
         node.target->accept(*this);
         node.value->accept(*this);
@@ -766,7 +786,8 @@ void SemanticAnalyzer::visit(AssignmentExprNode& node) {
                       node.line, node.column,
                       "составное присваивание '" + node.op +
                       "' требует числовых операндов",
-                      target_type->name, value_type->name);
+                      target_type->name, value_type->name,
+                      "оба операнда должны быть числами (int или float)");
                 last_expr_type_ = types_.type_error();
                 node.resolved_type = "<error>";
                 return;
@@ -778,7 +799,8 @@ void SemanticAnalyzer::visit(AssignmentExprNode& node) {
                       node.line, node.column,
                       "невозможно присвоить значение типа '" + value_type->name +
                       "' переменной типа '" + target_type->name + "'",
-                      target_type->name, value_type->name);
+                      target_type->name, value_type->name,
+                      "приведите присваиваемое значение к типу '" + target_type->name + "'");
             }
         }
     }

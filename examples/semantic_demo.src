@@ -1,5 +1,3 @@
-// Semantic analysis demo: showcases type checking, scopes, function calls
-
 struct Point {
     int x;
     int y;
