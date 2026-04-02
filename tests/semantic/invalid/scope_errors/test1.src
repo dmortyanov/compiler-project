@@ -1,4 +1,3 @@
-// Invalid: return type mismatch
 fn foo() -> int {
     return true;
 }
