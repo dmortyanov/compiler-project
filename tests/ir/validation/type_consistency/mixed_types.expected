@@ -1,9 +1,8 @@
 function main: int ()
   entry:
-    STORE [a], 3.14    # float a = ...
-    STORE [b], 2    # int b = ...
-    t0 = LOAD [a]
-    t1 = LOAD [b]
-    t2 = ADD t0, t1    # +
-    STORE [c], t2    # float c = ...
-    RETURN 0    # return
+    t0 = MOVE 3.14    # float a
+    t1 = MOVE 2    # int b
+    t2 = ADD t0, t1
+    t3 = MOVE t2    # float c
+    RETURN 0
+

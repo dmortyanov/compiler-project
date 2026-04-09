@@ -117,6 +117,9 @@ struct IRInstruction {
                                    int arg_count);
     static IRInstruction make_call_void(const std::string& func,
                                         int arg_count);
+
+    // SSA
+    static IRInstruction make_phi(Operand dest);
 };
 
 std::string instruction_to_string(const IRInstruction& instr);

@@ -1,20 +1,19 @@
 function main: int ()
   entry:
-    STORE [i], 0    # int i = ...
+    t0 = MOVE 0    # int i
     JUMP L_while_0
 
   L_while_0:
-    t0 = LOAD [i]
-    t1 = CMP_LT t0, 10    # <
-    JUMP_IF t1, L_body_1
+    t1 = PHI (t0, entry), (t4, L_body_1)
+    t2 = CMP_LT t1, 10
+    JUMP_IF t2, L_body_1
     JUMP L_endwhile_2
 
   L_body_1:
-    t2 = LOAD [i]
-    t3 = ADD t2, 1    # +
-    STORE [i], t3    # i = ...
+    t3 = ADD t1, 1
+    t4 = MOVE t3
     JUMP L_while_0
 
   L_endwhile_2:
-    t4 = LOAD [i]
-    RETURN t4    # return
+    RETURN t4
+

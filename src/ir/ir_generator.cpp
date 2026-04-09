@@ -2,6 +2,88 @@
 
 #include <cassert>
 #include <stdexcept>
+#include <set>
+#include <iostream>
+
+// ---------------------------------------------------------------
+// AssignedVarCollector
+// ---------------------------------------------------------------
+class AssignedVarCollector : public ASTVisitor {
+public:
+    std::set<std::string> assigned_vars;
+
+    void visit(ProgramNode& node) override { for(auto& d: node.declarations) d->accept(*this); }
+    void visit(BlockStmtNode& node) override { for(auto& s: node.statements) s->accept(*this); }
+    void visit(ExprStmtNode& node) override { if(node.expression) node.expression->accept(*this); }
+    void visit(IfStmtNode& node) override {
+        if (node.condition) node.condition->accept(*this);
+        if (node.then_branch) node.then_branch->accept(*this);
+        if (node.else_branch) node.else_branch->accept(*this);
+    }
+    void visit(WhileStmtNode& node) override {
+        if (node.condition) node.condition->accept(*this);
+        if (node.body) node.body->accept(*this);
+    }
+    void visit(ForStmtNode& node) override {
+        if (node.init) node.init->accept(*this);
+        if (node.condition) node.condition->accept(*this);
+        if (node.update) node.update->accept(*this);
+        if (node.body) node.body->accept(*this);
+    }
+    void visit(AssignmentExprNode& node) override {
+        if (auto* ident = dynamic_cast<IdentifierExprNode*>(node.target.get())) {
+            assigned_vars.insert(ident->name);
+        }
+        if (node.value) node.value->accept(*this);
+    }
+    void visit(PostfixExprNode& node) override {
+        if (auto* ident = dynamic_cast<IdentifierExprNode*>(node.operand.get())) {
+            assigned_vars.insert(ident->name);
+        }
+    }
+    void visit(BinaryExprNode& node) override {
+        node.left->accept(*this); node.right->accept(*this);
+    }
+    void visit(UnaryExprNode& node) override { node.operand->accept(*this); }
+    void visit(CallExprNode& node) override {
+        for(auto& arg : node.arguments) arg->accept(*this);
+    }
+    void visit(ReturnStmtNode&) override {}
+    void visit(VarDeclStmtNode&) override {}
+    void visit(FunctionDeclNode&) override {}
+    void visit(StructDeclNode&) override {}
+    void visit(LiteralExprNode&) override {}
+    void visit(IdentifierExprNode&) override {}
+};
+
+static bool operands_equal(const Operand& a, const Operand& b) {
+    if (a.kind != b.kind) return false;
+    switch(a.kind) {
+        case OperandKind::Temp:
+        case OperandKind::Variable:
+        case OperandKind::Label:
+        case OperandKind::StringLiteral:
+            return a.name == b.name;
+        case OperandKind::IntLiteral:
+        case OperandKind::BoolLiteral:
+            return a.int_val == b.int_val;
+        case OperandKind::FloatLiteral:
+            return a.float_val == b.float_val;
+        case OperandKind::None:
+            return true;
+    }
+    return false;
+}
+
+static std::unordered_map<std::string, Operand> flatten_scopes(const std::vector<std::unordered_map<std::string, Operand>>& scopes) {
+    std::unordered_map<std::string, Operand> res;
+    for (const auto& s : scopes) {
+        for (const auto& kv : s) {
+            res[kv.first] = kv.second;
+        }
+    }
+    return res;
+}
 
 // ---------------------------------------------------------------
 // Constructor
@@ -9,9 +91,6 @@
 IRGenerator::IRGenerator(SemanticSymbolTable& sym, TypeRegistry& types)
     : sym_(sym), types_(types) {}
 
-// ---------------------------------------------------------------
-// generate — entry point
-// ---------------------------------------------------------------
 IRProgram IRGenerator::generate(ProgramNode& ast) {
     program_ = IRProgram{};
     ast.accept(*this);
@@ -22,9 +101,6 @@ const IRFunction* IRGenerator::get_function_ir(const std::string& name) const {
     return program_.find_function(name);
 }
 
-// ---------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------
 Operand IRGenerator::new_temp(const std::string& type) {
     return cur_func_->new_temp(type);
 }
@@ -44,6 +120,7 @@ void IRGenerator::start_block(const std::string& label) {
 
 void IRGenerator::finish_block_jump(const std::string& target) {
     if (!cur_block_) return;
+    last_finished_block_ = cur_block_->label;
     if (!cur_block_->has_terminator()) {
         emit(IRInstruction::make_jump(target));
         cur_func_->link_blocks(cur_block_->label, target);
@@ -55,6 +132,7 @@ void IRGenerator::finish_block_cond(Operand cond,
                                      const std::string& true_label,
                                      const std::string& false_label) {
     if (!cur_block_) return;
+    last_finished_block_ = cur_block_->label;
     emit(IRInstruction::make_jump_if(cond, true_label));
     emit(IRInstruction::make_jump(false_label));
     cur_func_->link_blocks(cur_block_->label, true_label);
@@ -64,12 +142,14 @@ void IRGenerator::finish_block_cond(Operand cond,
 
 void IRGenerator::finish_block_return(Operand value) {
     if (!cur_block_) return;
+    last_finished_block_ = cur_block_->label;
     emit(IRInstruction::make_return(value));
     cur_block_ = nullptr;
 }
 
 void IRGenerator::finish_block_return_void() {
     if (!cur_block_) return;
+    last_finished_block_ = cur_block_->label;
     emit(IRInstruction::make_return_void());
     cur_block_ = nullptr;
 }
@@ -84,6 +164,12 @@ void IRGenerator::exit_scope() {
 }
 
 void IRGenerator::bind_variable(const std::string& name, const Operand& operand) {
+    for (int i = static_cast<int>(scope_stack_.size()) - 1; i >= 0; --i) {
+        if (scope_stack_[i].find(name) != scope_stack_[i].end()) {
+            scope_stack_[i][name] = operand;
+            return;
+        }
+    }
     if (!scope_stack_.empty())
         scope_stack_.back()[name] = operand;
 }
@@ -94,8 +180,7 @@ Operand IRGenerator::lookup_variable(const std::string& name) {
         if (it != scope_stack_[i].end())
             return it->second;
     }
-    // Fallback: use variable name directly
-    return Operand::var(name);
+    return Operand::var(name); // fallback
 }
 
 std::string IRGenerator::type_string(const std::string& resolved_type) {
@@ -121,220 +206,297 @@ IROpcode IRGenerator::binary_op_to_opcode(const std::string& op) {
     return IROpcode::NOP;
 }
 
-// ---------------------------------------------------------------
-// ProgramNode — iterate over declarations
-// ---------------------------------------------------------------
 void IRGenerator::visit(ProgramNode& node) {
     for (auto& decl : node.declarations)
         decl->accept(*this);
 }
 
-// ---------------------------------------------------------------
-// FunctionDeclNode — create IR function with entry block
-// ---------------------------------------------------------------
 void IRGenerator::visit(FunctionDeclNode& node) {
     IRFunction& func = program_.add_function(node.name, node.return_type);
     cur_func_ = &func;
 
-    // Add parameters
     for (const auto& p : node.parameters)
         func.params.push_back({p.name, p.type_name});
 
     enter_scope();
-
-    // Entry block
     start_block("entry");
 
-    // Bind parameters as variables
     for (int i = 0; i < static_cast<int>(node.parameters.size()); ++i) {
         const auto& p = node.parameters[i];
-        Operand param_var = Operand::var(p.name, p.type_name);
-        bind_variable(p.name, param_var);
+        Operand param_temp = new_temp(p.type_name);
+        emit(IRInstruction::make_move(param_temp, Operand::var(p.name, p.type_name)));
+        bind_variable(p.name, param_temp);
     }
 
-    // Generate body
     if (node.body)
         node.body->accept(*this);
 
-    // Ensure function ends with a return
     if (cur_block_ && !cur_block_->has_terminator()) {
         if (node.return_type == "void")
             finish_block_return_void();
         else
-            finish_block_return(Operand::int_lit(0));  // implicit return 0
+            finish_block_return(Operand::int_lit(0));
     }
 
     exit_scope();
     cur_func_ = nullptr;
 }
 
-// ---------------------------------------------------------------
-// StructDeclNode — no IR generated (type info only)
-// ---------------------------------------------------------------
-void IRGenerator::visit(StructDeclNode& /*node*/) {
-    // Struct declarations don't produce IR instructions
-}
+void IRGenerator::visit(StructDeclNode& /*node*/) {}
 
-// ---------------------------------------------------------------
-// BlockStmtNode — new scope, generate all statements
-// ---------------------------------------------------------------
 void IRGenerator::visit(BlockStmtNode& node) {
+    std::unordered_map<std::string, Operand> pre_block_vars = flatten_scopes(scope_stack_);
     enter_scope();
-    for (auto& stmt : node.statements)
-        stmt->accept(*this);
+    for (auto& stmt : node.statements) stmt->accept(*this);
+    
+    // Bubble up modifications to outer scopes before destroying the block
+    auto inner_end_vars = flatten_scopes(scope_stack_);
     exit_scope();
-}
-
-// ---------------------------------------------------------------
-// VarDeclStmtNode — allocate + optional init
-// ---------------------------------------------------------------
-void IRGenerator::visit(VarDeclStmtNode& node) {
-    Operand var = Operand::var(node.name, node.type_name);
-    bind_variable(node.name, var);
-
-    if (node.initializer) {
-        node.initializer->accept(*this);
-        Operand val = last_result_;
-
-        auto instr = IRInstruction::make_store(var, val);
-        instr.source_line = node.line;
-        instr.comment = node.type_name + " " + node.name + " = ...";
-        emit(instr);
+    for (const auto& kv : inner_end_vars) {
+        if (pre_block_vars.find(kv.first) != pre_block_vars.end()) {
+            if (!operands_equal(pre_block_vars[kv.first], kv.second)) {
+                bind_variable(kv.first, kv.second);
+            }
+        }
     }
 }
 
-// ---------------------------------------------------------------
-// ExprStmtNode — generate expression, discard result
-// ---------------------------------------------------------------
-void IRGenerator::visit(ExprStmtNode& node) {
-    if (node.expression)
-        node.expression->accept(*this);
+void IRGenerator::visit(VarDeclStmtNode& node) {
+    Operand rhs = Operand::int_lit(0);
+    if (node.initializer) {
+        node.initializer->accept(*this);
+        rhs = last_result_;
+    }
+
+    Operand tmp = new_temp(node.type_name);
+    auto instr = IRInstruction::make_move(tmp, rhs);
+    instr.source_line = node.line;
+    instr.comment = node.type_name + " " + node.name;
+    emit(instr);
+    
+    if (!scope_stack_.empty())
+        scope_stack_.back()[node.name] = tmp;
 }
 
-// ---------------------------------------------------------------
-// ReturnStmtNode
-// ---------------------------------------------------------------
+void IRGenerator::visit(ExprStmtNode& node) {
+    if (node.expression) node.expression->accept(*this);
+}
+
 void IRGenerator::visit(ReturnStmtNode& node) {
     if (node.value) {
         node.value->accept(*this);
         auto instr = IRInstruction::make_return(last_result_);
         instr.source_line = node.line;
-        instr.comment = "return";
         emit(instr);
     } else {
         auto instr = IRInstruction::make_return_void();
         instr.source_line = node.line;
-        instr.comment = "return void";
         emit(instr);
     }
-    cur_block_ = nullptr;  // unreachable after return
+    last_finished_block_ = cur_block_->label;
+    cur_block_ = nullptr;
 }
 
-// ---------------------------------------------------------------
-// IfStmtNode — conditional branches
-// ---------------------------------------------------------------
 void IRGenerator::visit(IfStmtNode& node) {
     std::string then_label = new_label("L_then");
     std::string else_label = node.else_branch ? new_label("L_else") : "";
     std::string end_label = new_label("L_endif");
 
-    // Evaluate condition
     node.condition->accept(*this);
     Operand cond = last_result_;
+    std::string cond_block_label = cur_block_->label;
 
-    if (node.else_branch) {
-        finish_block_cond(cond, then_label, else_label);
-    } else {
-        finish_block_cond(cond, then_label, end_label);
-    }
+    if (node.else_branch) finish_block_cond(cond, then_label, else_label);
+    else finish_block_cond(cond, then_label, end_label);
 
-    // Then branch
+    auto defs_before = scope_stack_;
+
+    // Then
     start_block(then_label);
     node.then_branch->accept(*this);
+    bool then_reachable = (cur_block_ != nullptr);
+    std::string then_exit_label = cur_block_ ? cur_block_->label : last_finished_block_;
     finish_block_jump(end_label);
+    auto defs_then = scope_stack_;
 
-    // Else branch
+    // Restore
+    scope_stack_ = defs_before;
+
+    // Else
+    bool else_reachable = false;
+    std::string else_exit_label;
     if (node.else_branch) {
         start_block(else_label);
         node.else_branch->accept(*this);
+        else_reachable = (cur_block_ != nullptr);
+        else_exit_label = cur_block_ ? cur_block_->label : last_finished_block_;
         finish_block_jump(end_label);
+    } else {
+        else_reachable = true;
+        else_exit_label = cond_block_label;
     }
 
-    // Continuation
+    auto defs_else = scope_stack_;
+
     start_block(end_label);
+
+    auto flat_then = flatten_scopes(defs_then);
+    auto flat_else = flatten_scopes(defs_else);
+    
+    for (int i = 0; i < static_cast<int>(scope_stack_.size()); ++i) {
+        for (auto& kv : scope_stack_[i]) {
+            const std::string& var = kv.first;
+            Operand t_val = flat_then[var];
+            Operand e_val = flat_else[var];
+            
+            if (then_reachable && else_reachable && !operands_equal(t_val, e_val)) {
+                Operand phi_dest = new_temp(t_val.type_annotation.empty() ? e_val.type_annotation : t_val.type_annotation);
+                auto phi_inst = IRInstruction::make_phi(phi_dest);
+                phi_inst.srcs.push_back(t_val);
+                phi_inst.srcs.push_back(Operand::label(then_exit_label));
+                phi_inst.srcs.push_back(e_val);
+                phi_inst.srcs.push_back(Operand::label(else_exit_label));
+                emit(phi_inst);
+                kv.second = phi_dest;
+            } else if (then_reachable) {
+                kv.second = t_val;
+            } else if (else_reachable) {
+                kv.second = e_val;
+            }
+        }
+    }
 }
 
-// ---------------------------------------------------------------
-// WhileStmtNode — loop header + body + back edge
-// ---------------------------------------------------------------
 void IRGenerator::visit(WhileStmtNode& node) {
     std::string header_label = new_label("L_while");
     std::string body_label = new_label("L_body");
     std::string end_label = new_label("L_endwhile");
 
-    // Jump to header
+    std::string pre_header_label = cur_block_->label;
     finish_block_jump(header_label);
 
-    // Header: evaluate condition
     start_block(header_label);
+
+    AssignedVarCollector collector;
+    node.body->accept(collector);
+    
+    auto flat_before = flatten_scopes(scope_stack_);
+    std::vector<std::pair<std::string, size_t>> phi_nodes;
+
+    for (const std::string& var : collector.assigned_vars) {
+        if (flat_before.find(var) != flat_before.end()) {
+            Operand before_val = flat_before[var];
+            Operand phi_dest = new_temp(before_val.type_annotation);
+            
+            auto phi_inst = IRInstruction::make_phi(phi_dest);
+            phi_inst.srcs.push_back(before_val);
+            phi_inst.srcs.push_back(Operand::label(pre_header_label));
+            phi_inst.srcs.push_back(Operand::none());
+            phi_inst.srcs.push_back(Operand::none());
+            emit(phi_inst);
+            
+            bind_variable(var, phi_dest);
+            phi_nodes.push_back({var, cur_block_->instructions.size() - 1});
+        }
+    }
+
     node.condition->accept(*this);
     Operand cond = last_result_;
     finish_block_cond(cond, body_label, end_label);
 
-    // Body
     start_block(body_label);
     node.body->accept(*this);
-    finish_block_jump(header_label);  // back edge
+    std::string body_exit_label = cur_block_ ? cur_block_->label : last_finished_block_;
+    bool body_reachable = (cur_block_ != nullptr);
+    finish_block_jump(header_label);
 
-    // Exit
+    auto flat_after_body = flatten_scopes(scope_stack_);
+    BasicBlock* header_block = cur_func_->find_block(header_label);
+    for (auto& pair : phi_nodes) {
+        std::string var = pair.first;
+        IRInstruction& inst = header_block->instructions[pair.second];
+        if (body_reachable) {
+            inst.srcs[2] = flat_after_body[var];
+            inst.srcs[3] = Operand::label(body_exit_label);
+        } else {
+            inst.srcs.pop_back(); inst.srcs.pop_back();
+        }
+    }
+
     start_block(end_label);
 }
 
-// ---------------------------------------------------------------
-// ForStmtNode — init + header + body + update + back edge
-// ---------------------------------------------------------------
 void IRGenerator::visit(ForStmtNode& node) {
     std::string header_label = new_label("L_for");
     std::string body_label = new_label("L_forbody");
     std::string update_label = new_label("L_forupd");
     std::string end_label = new_label("L_endfor");
 
-    // Init
     enter_scope();
-    if (node.init)
-        node.init->accept(*this);
+    if (node.init) node.init->accept(*this);
 
+    std::string pre_header_label = cur_block_->label;
     finish_block_jump(header_label);
 
-    // Header: evaluate condition
     start_block(header_label);
+
+    AssignedVarCollector collector;
+    if (node.update) node.update->accept(collector);
+    if (node.body) node.body->accept(collector);
+
+    auto flat_before = flatten_scopes(scope_stack_);
+    std::vector<std::pair<std::string, size_t>> phi_nodes;
+
+    for (const std::string& var : collector.assigned_vars) {
+        if (flat_before.find(var) != flat_before.end()) {
+            Operand before_val = flat_before[var];
+            Operand phi_dest = new_temp(before_val.type_annotation);
+            auto phi_inst = IRInstruction::make_phi(phi_dest);
+            phi_inst.srcs.push_back(before_val);
+            phi_inst.srcs.push_back(Operand::label(pre_header_label));
+            phi_inst.srcs.push_back(Operand::none());
+            phi_inst.srcs.push_back(Operand::none());
+            emit(phi_inst);
+            
+            bind_variable(var, phi_dest);
+            phi_nodes.push_back({var, cur_block_->instructions.size() - 1});
+        }
+    }
+
     if (node.condition) {
         node.condition->accept(*this);
-        Operand cond = last_result_;
-        finish_block_cond(cond, body_label, end_label);
+        finish_block_cond(last_result_, body_label, end_label);
     } else {
         finish_block_jump(body_label);
     }
 
-    // Body
     start_block(body_label);
-    node.body->accept(*this);
+    if (node.body) node.body->accept(*this);
     finish_block_jump(update_label);
 
-    // Update
     start_block(update_label);
-    if (node.update)
-        node.update->accept(*this);
-    finish_block_jump(header_label);  // back edge
+    if (node.update) node.update->accept(*this);
+    std::string update_exit_label = cur_block_ ? cur_block_->label : last_finished_block_;
+    bool update_reachable = (cur_block_ != nullptr);
+    finish_block_jump(header_label);
 
-    // Exit
+    auto flat_after_body = flatten_scopes(scope_stack_);
+    BasicBlock* header_block = cur_func_->find_block(header_label);
+    for (auto& pair : phi_nodes) {
+        std::string var = pair.first;
+        IRInstruction& inst = header_block->instructions[pair.second];
+        if (update_reachable) {
+            inst.srcs[2] = flat_after_body[var];
+            inst.srcs[3] = Operand::label(update_exit_label);
+        } else {
+            inst.srcs.pop_back(); inst.srcs.pop_back();
+        }
+    }
+
     start_block(end_label);
     exit_scope();
 }
 
-// ---------------------------------------------------------------
-// LiteralExprNode — produce constant operand
-// ---------------------------------------------------------------
 void IRGenerator::visit(LiteralExprNode& node) {
     switch (node.kind) {
         case LiteralExprNode::Kind::Integer:
@@ -352,45 +514,34 @@ void IRGenerator::visit(LiteralExprNode& node) {
     }
 }
 
-// ---------------------------------------------------------------
-// IdentifierExprNode — load variable into temp
-// ---------------------------------------------------------------
 void IRGenerator::visit(IdentifierExprNode& node) {
-    Operand var = lookup_variable(node.name);
-    Operand tmp = new_temp(type_string(node.resolved_type));
-
-    auto instr = IRInstruction::make_load(tmp, var);
-    instr.source_line = node.line;
-    emit(instr);
-
-    last_result_ = tmp;
+    last_result_ = lookup_variable(node.name);
 }
 
-// ---------------------------------------------------------------
-// BinaryExprNode — translate to 3-address operation
-// ---------------------------------------------------------------
 void IRGenerator::visit(BinaryExprNode& node) {
-    // Short-circuit for && and ||
     if (node.op == "&&") {
         std::string rhs_label = new_label("L_and_rhs");
         std::string end_label = new_label("L_and_end");
-        Operand result = new_temp("bool");
 
-        // Evaluate LHS
         node.left->accept(*this);
         Operand lhs = last_result_;
-
-        // If LHS is false, short-circuit to false
-        emit(IRInstruction::make_move(result, Operand::bool_lit(false)));
+        std::string lhs_block = cur_block_->label;
         finish_block_cond(lhs, rhs_label, end_label);
 
-        // Evaluate RHS
         start_block(rhs_label);
         node.right->accept(*this);
-        emit(IRInstruction::make_move(result, last_result_));
+        Operand rhs = last_result_;
+        std::string rhs_block = cur_block_ ? cur_block_->label : last_finished_block_;
         finish_block_jump(end_label);
 
         start_block(end_label);
+        Operand result = new_temp("bool");
+        auto phi = IRInstruction::make_phi(result);
+        phi.srcs.push_back(Operand::bool_lit(false));
+        phi.srcs.push_back(Operand::label(lhs_block));
+        phi.srcs.push_back(rhs);
+        phi.srcs.push_back(Operand::label(rhs_block));
+        emit(phi);
         last_result_ = result;
         return;
     }
@@ -398,31 +549,32 @@ void IRGenerator::visit(BinaryExprNode& node) {
     if (node.op == "||") {
         std::string rhs_label = new_label("L_or_rhs");
         std::string end_label = new_label("L_or_end");
-        Operand result = new_temp("bool");
 
-        // Evaluate LHS
         node.left->accept(*this);
         Operand lhs = last_result_;
-
-        // If LHS is true, short-circuit to true
-        emit(IRInstruction::make_move(result, Operand::bool_lit(true)));
+        std::string lhs_block = cur_block_->label;
         finish_block_cond(lhs, end_label, rhs_label);
 
-        // Evaluate RHS
         start_block(rhs_label);
         node.right->accept(*this);
-        emit(IRInstruction::make_move(result, last_result_));
+        Operand rhs = last_result_;
+        std::string rhs_block = cur_block_ ? cur_block_->label : last_finished_block_;
         finish_block_jump(end_label);
 
         start_block(end_label);
+        Operand result = new_temp("bool");
+        auto phi = IRInstruction::make_phi(result);
+        phi.srcs.push_back(Operand::bool_lit(true));
+        phi.srcs.push_back(Operand::label(lhs_block));
+        phi.srcs.push_back(rhs);
+        phi.srcs.push_back(Operand::label(rhs_block));
+        emit(phi);
         last_result_ = result;
         return;
     }
 
-    // Normal binary operations
     node.left->accept(*this);
     Operand lhs = last_result_;
-
     node.right->accept(*this);
     Operand rhs = last_result_;
 
@@ -431,15 +583,10 @@ void IRGenerator::visit(BinaryExprNode& node) {
 
     auto instr = IRInstruction::make_binary(opcode, dest, lhs, rhs);
     instr.source_line = node.line;
-    instr.comment = node.op;
     emit(instr);
-
     last_result_ = dest;
 }
 
-// ---------------------------------------------------------------
-// UnaryExprNode — NEG or NOT
-// ---------------------------------------------------------------
 void IRGenerator::visit(UnaryExprNode& node) {
     node.operand->accept(*this);
     Operand src = last_result_;
@@ -452,15 +599,10 @@ void IRGenerator::visit(UnaryExprNode& node) {
     auto instr = IRInstruction::make_unary(opcode, dest, src);
     instr.source_line = node.line;
     emit(instr);
-
     last_result_ = dest;
 }
 
-// ---------------------------------------------------------------
-// CallExprNode — PARAM setup + CALL
-// ---------------------------------------------------------------
 void IRGenerator::visit(CallExprNode& node) {
-    // Evaluate and emit PARAM for each argument
     std::vector<Operand> arg_operands;
     for (auto& arg : node.arguments) {
         arg->accept(*this);
@@ -473,89 +615,60 @@ void IRGenerator::visit(CallExprNode& node) {
         emit(instr);
     }
 
-    // CALL
     Operand dest = new_temp(type_string(node.resolved_type));
-    auto instr = IRInstruction::make_call(dest, node.callee,
-                                           static_cast<int>(node.arguments.size()));
+    auto instr = IRInstruction::make_call(dest, node.callee, static_cast<int>(node.arguments.size()));
     instr.source_line = node.line;
-    instr.comment = "call " + node.callee;
     emit(instr);
-
     last_result_ = dest;
 }
 
-// ---------------------------------------------------------------
-// PostfixExprNode — x++ or x--
-// ---------------------------------------------------------------
 void IRGenerator::visit(PostfixExprNode& node) {
-    // Get the variable
     auto* ident = dynamic_cast<IdentifierExprNode*>(node.operand.get());
     if (!ident) {
-        // Fallback: just evaluate the operand
         node.operand->accept(*this);
         return;
     }
 
-    Operand var = lookup_variable(ident->name);
-    Operand old_val = new_temp(type_string(node.resolved_type));
-    emit(IRInstruction::make_load(old_val, var));
-
+    Operand old_val = lookup_variable(ident->name);
     IROpcode op = (node.op == "++") ? IROpcode::ADD : IROpcode::SUB;
     Operand new_val = new_temp(type_string(node.resolved_type));
 
     auto instr = IRInstruction::make_binary(op, new_val, old_val, Operand::int_lit(1));
     instr.source_line = node.line;
-    instr.comment = ident->name + node.op;
     emit(instr);
 
-    emit(IRInstruction::make_store(var, new_val));
-
-    // Postfix returns the OLD value
+    bind_variable(ident->name, new_val);
     last_result_ = old_val;
 }
 
-// ---------------------------------------------------------------
-// AssignmentExprNode — compute value + store
-// ---------------------------------------------------------------
 void IRGenerator::visit(AssignmentExprNode& node) {
-    // Evaluate the right-hand side
     node.value->accept(*this);
     Operand rhs = last_result_;
 
-    // Get the target variable
     auto* ident = dynamic_cast<IdentifierExprNode*>(node.target.get());
     if (!ident) {
-        // Not a simple variable — just set result for now
         last_result_ = rhs;
         return;
     }
 
-    Operand var = lookup_variable(ident->name);
-
     if (node.op == "=") {
-        auto instr = IRInstruction::make_store(var, rhs);
+        Operand result = new_temp(type_string(node.resolved_type));
+        auto instr = IRInstruction::make_move(result, rhs);
         instr.source_line = node.line;
-        instr.comment = ident->name + " = ...";
         emit(instr);
-        last_result_ = rhs;
+        bind_variable(ident->name, result);
+        last_result_ = rhs; // assignment evaluates to assigned value
     } else {
-        // Compound assignment: +=, -=, *=, /=
-        Operand old_val = new_temp(type_string(node.resolved_type));
-        emit(IRInstruction::make_load(old_val, var));
-
+        Operand old_val = lookup_variable(ident->name);
         std::string base_op = node.op.substr(0, node.op.size() - 1);
         IROpcode opcode = binary_op_to_opcode(base_op);
+        
         Operand result = new_temp(type_string(node.resolved_type));
-
         auto binop = IRInstruction::make_binary(opcode, result, old_val, rhs);
         binop.source_line = node.line;
         emit(binop);
-
-        auto store = IRInstruction::make_store(var, result);
-        store.source_line = node.line;
-        store.comment = ident->name + " " + node.op + " ...";
-        emit(store);
-
+        
+        bind_variable(ident->name, result);
         last_result_ = result;
     }
 }

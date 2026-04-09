@@ -1,6 +1,6 @@
 function main: int ()
   entry:
-    t0 = ADD 2, 3    # +
-    STORE [x], t0    # int x = ...
-    t1 = LOAD [x]
-    RETURN t1    # return
+    t0 = ADD 2, 3
+    t1 = MOVE t0    # int x
+    RETURN t1
+

@@ -23,6 +23,7 @@ add_library(compiler_core
     src/semantic/symbol_table.cpp
     src/semantic/errors.cpp
     src/semantic/analyzer.cpp
+    # Sprint 4: IR generation
     src/ir/ir_instructions.cpp
     src/ir/basic_block.cpp
     src/ir/ir_generator.cpp

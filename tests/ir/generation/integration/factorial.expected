@@ -1,26 +1,24 @@
 function factorial: int (int n)
   entry:
-    t0 = LOAD [n]
-    t1 = CMP_LE t0, 1    # <=
+    t0 = MOVE [n]
+    t1 = CMP_LE t0, 1
     JUMP_IF t1, L_then_0
     JUMP L_endif_1
 
   L_then_0:
-    RETURN 1    # return
+    RETURN 1
 
   L_endif_1:
-    t2 = LOAD [n]
-    t3 = LOAD [n]
-    t4 = SUB t3, 1    # -
-    PARAM 0, t4
-    t5 = CALL factorial, 1    # call factorial
-    t6 = MUL t2, t5    # *
-    RETURN t6    # return
+    t2 = SUB t0, 1
+    PARAM 0, t2
+    t3 = CALL factorial, 1
+    t4 = MUL t0, t3
+    RETURN t4
 
 function main: int ()
   entry:
     PARAM 0, 5
-    t0 = CALL factorial, 1    # call factorial
-    STORE [result], t0    # int result = ...
-    t1 = LOAD [result]
-    RETURN t1    # return
+    t0 = CALL factorial, 1
+    t1 = MOVE t0    # int result
+    RETURN t1
+

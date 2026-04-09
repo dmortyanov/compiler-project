@@ -262,6 +262,14 @@ IRInstruction IRInstruction::make_call_void(const std::string& func,
     return i;
 }
 
+IRInstruction IRInstruction::make_phi(Operand dest) {
+    IRInstruction i;
+    i.opcode = IROpcode::PHI;
+    i.dest = dest;
+    // srcs will be filled manually with (value, label) pairs
+    return i;
+}
+
 // ---------------------------------------------------------------
 // instruction_to_string
 // ---------------------------------------------------------------
@@ -322,6 +330,15 @@ std::string instruction_to_string(const IRInstruction& instr) {
         case IROpcode::MOVE:
             result += operand_to_string(instr.dest) + " = MOVE "
                     + operand_to_string(instr.srcs[0]);
+            break;
+
+        case IROpcode::PHI:
+            result += operand_to_string(instr.dest) + " = PHI ";
+            for (size_t j = 0; j + 1 < instr.srcs.size(); j += 2) {
+                if (j > 0) result += ", ";
+                result += "(" + operand_to_string(instr.srcs[j]) + ", " 
+                              + operand_to_string(instr.srcs[j+1]) + ")";
+            }
             break;
 
         case IROpcode::NOP:

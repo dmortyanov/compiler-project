@@ -53,6 +53,7 @@ private:
     // Current generation state
     IRFunction* cur_func_ = nullptr;
     BasicBlock* cur_block_ = nullptr;
+    std::string last_finished_block_;
 
     // Last expression result (set after visiting any expression node)
     Operand last_result_;

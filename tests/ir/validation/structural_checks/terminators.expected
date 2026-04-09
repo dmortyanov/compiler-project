@@ -1,13 +1,13 @@
 function main: int ()
   entry:
-    STORE [x], 1    # int x = ...
-    t0 = LOAD [x]
-    t1 = CMP_GT t0, 0    # >
+    t0 = MOVE 1    # int x
+    t1 = CMP_GT t0, 0
     JUMP_IF t1, L_then_0
     JUMP L_endif_1
 
   L_then_0:
-    RETURN 1    # return
+    RETURN 1
 
   L_endif_1:
-    RETURN 0    # return
+    RETURN 0
+

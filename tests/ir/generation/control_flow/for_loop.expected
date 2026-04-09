@@ -1,28 +1,26 @@
 function main: int ()
   entry:
-    STORE [sum], 0    # int sum = ...
-    STORE [i], 1    # int i = ...
+    t0 = MOVE 0    # int sum
+    t1 = MOVE 1    # int i
     JUMP L_for_0
 
   L_for_0:
-    t0 = LOAD [i]
-    t1 = CMP_LE t0, 5    # <=
-    JUMP_IF t1, L_forbody_1
+    t2 = PHI (t1, entry), (t8, L_forupd_2)
+    t3 = PHI (t0, entry), (t6, L_forupd_2)
+    t4 = CMP_LE t2, 5
+    JUMP_IF t4, L_forbody_1
     JUMP L_endfor_3
 
   L_forbody_1:
-    t2 = LOAD [sum]
-    t3 = LOAD [i]
-    t4 = ADD t2, t3    # +
-    STORE [sum], t4    # sum = ...
+    t5 = ADD t3, t2
+    t6 = MOVE t5
     JUMP L_forupd_2
 
   L_forupd_2:
-    t5 = LOAD [i]
-    t6 = ADD t5, 1    # +
-    STORE [i], t6    # i = ...
+    t7 = ADD t2, 1
+    t8 = MOVE t7
     JUMP L_for_0
 
   L_endfor_3:
-    t7 = LOAD [sum]
-    RETURN t7    # return
+    RETURN t6
+
