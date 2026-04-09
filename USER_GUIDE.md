@@ -1,4 +1,4 @@
-# MiniCompiler — User Guide (Sprint 1–3)
+# MiniCompiler — User Guide (Sprint 1–4)
 ---
 
 ## 1) Сборка проекта (Windows / Visual Studio generator)
@@ -363,3 +363,69 @@ structs, несколько функций, вложенные области в
 ```
 
 ---
+
+## 10) Команда `ir` — Генерация IR (Sprint 4)
+
+Команда `ir` преобразует семантически корректное AST в трехадресный код IR (Intermediate Representation), объединяя инструкции в базовые блоки и CFG (Control Flow Graph).
+
+Общий вид:
+
+```powershell
+.\build\Debug\compiler.exe ir --input <file> [--output <file>] [--format text|dot|json] [--stats] [--optimize]
+```
+
+### 10.1 Текстовый дамп (по умолчанию)
+
+```powershell
+.\build\Debug\compiler.exe ir --input examples\factorial.src
+```
+
+### 10.2 Graphviz DOT (CFG визуализация)
+
+Генерирует граф потока управления, раскрашенный цветами (входы — зелёный, возвраты — красный, циклы — синий).
+
+```powershell
+.\build\Debug\compiler.exe ir --input examples\factorial.src --format dot --output cfg.dot
+dot -Tpng cfg.dot -o cfg.png
+```
+
+### 10.3 JSON
+
+Сериализация IR-программы:
+
+```powershell
+.\build\Debug\compiler.exe ir --input examples\factorial.src --format json --output ir.json
+```
+
+### 10.4 Статистика IR (`--stats`)
+
+Выделяет метрики IR: счетчики базовых блоков, переменных, временных регистров, количество инструкций каждого типа.
+
+```powershell
+.\build\Debug\compiler.exe ir --input examples\factorial.src --stats
+```
+
+### 10.5 Peephole-оптимизация (`--optimize`)
+
+Включает оптимизатор исходного IR-кода: свёртка констант, алгебраические упрощения, снижение силы операций, удаление недостижимого/мертвого кода, схлопывание цепочек переходов.
+Отчёт об оптимизации (какие инструкции были модифицированы или удалены) выводится в `stderr`.
+
+```powershell
+.\build\Debug\compiler.exe ir --input examples\factorial.src --optimize
+```
+
+---
+
+## 11) Тестирование IR (Sprint 4)
+
+Спринт 4 предоставляет свой тестовый драйвер, проверяющий эталонный выход `ir_to_text()`:
+
+```powershell
+.\build\Debug\ir_test_runner.exe tests\ir\generation tests\ir\validation
+```
+
+Также все тесты добавлены в CTest, поэтому полный прогон можно выполнить:
+```powershell
+cd build
+ctest -C Debug -VV
+```

@@ -59,6 +59,26 @@ cmake --build build
 ./build/compiler check --input examples/semantic_demo.src --output report.txt
 ```
 
+### Генерация промежуточного представления (Sprint 4)
+
+```bash
+# Получение текстового дампа трехадресного кода
+./build/compiler ir --input examples/factorial.src
+
+# Генерация CFG для GraphViz
+./build/compiler ir --input examples/factorial.src --format dot --output cfg.dot
+dot -Tpng cfg.dot -o cfg.png
+
+# Вывод в формате JSON
+./build/compiler ir --input examples/factorial.src --format json --output ir.json
+
+# Вывод с подробной статистикой IR
+./build/compiler ir --input examples/factorial.src --stats
+
+# Выполнение peephole оптимизации и вывод отчёта об оптимизациях
+./build/compiler ir --input examples/factorial.src --optimize
+```
+
 ### Примеры ошибок семантического анализа
 
 ```
@@ -89,14 +109,17 @@ semantic error: argument count mismatch: function 'add' expects 2 argument(s), g
 | `parse` | Синтаксический анализ |
 | `check` | Семантический анализ |
 | `symbols` | Вывод таблицы символов |
+| `ir` | Генерация промежуточного представления (IR) |
 
 | Флаг | Описание |
 |------|----------|
 | `--input <file>` | Входной файл |
 | `--output <file>` | Выходной файл (stdout по умолчанию) |
-| `--format text\|dot\|json` | Формат вывода (по умолчанию text) |
+| `--format text\|dot\|json` | Формат вывода |
 | `--verbose` | Подробный вывод |
 | `--show-types` | Показать типы в AST (для `check`) |
+| `--stats` | Показать статистику (для `ir`) |
+| `--optimize` | Включить Peephole оптимизацию (для `ir`) |
 
 ## Тесты
 
@@ -121,6 +144,17 @@ tests/semantic/invalid/        — программы с ожидаемыми о
   duplicate_declaration/       — дублирование объявлений
   argument_errors/             — ошибки аргументов функций
   scope_errors/                — ошибки областей видимости
+```
+
+### Тесты IR (Sprint 4)
+
+```
+tests/ir/generation/           — тесты генерации (golden-tests)
+  expressions/                 — выражения
+  control_flow/                — if, loops
+  functions/                   — функции
+  integration/                 — полные программы
+tests/ir/validation/           — валидационные проверки структуры IR
 ```
 
 ## Спецификация

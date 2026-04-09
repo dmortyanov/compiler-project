@@ -12,6 +12,9 @@
 #include "preprocessor/preprocessor.h"
 #include "semantic/analyzer.h"
 #include "semantic/errors.h"
+#include "ir/ir_generator.h"
+#include "ir/ir_printer.h"
+#include "ir/optimizer.h"
 
 static void print_usage() {
     std::cout << "Usage:\n";
@@ -19,6 +22,7 @@ static void print_usage() {
     std::cout << "  compiler parse    --input <file> [--output <file>] [--format text|dot|json] [--verbose]\n";
     std::cout << "  compiler check    --input <file> [--output <file>] [--verbose] [--show-types]\n";
     std::cout << "  compiler symbols  --input <file> [--format text|json] [--output <file>]\n";
+    std::cout << "  compiler ir       --input <file> [--output <file>] [--format text|dot|json] [--stats] [--optimize]\n";
 }
 
 static std::string read_source(const std::string& path) {
@@ -269,6 +273,77 @@ static int cmd_symbols(const std::string& input_path,
     return 0;
 }
 
+// ---------------------------------------------------------------
+// Sprint 4: IR generation command
+// ---------------------------------------------------------------
+static int cmd_ir(const std::string& input_path,
+                  const std::string& output_path,
+                  const std::string& format,
+                  bool show_stats, bool do_optimize) {
+    std::string source = read_source(input_path);
+    if (source.empty()) {
+        std::ifstream test(input_path);
+        if (!test) {
+            std::cerr << "Failed to read input file: " << input_path << "\n";
+            return 1;
+        }
+    }
+
+    auto tokens = tokenize(source, true);
+
+    Parser parser(tokens);
+    auto ast = parser.parse();
+
+    if (!parser.errors().empty()) {
+        for (const auto& err : parser.errors()) {
+            std::cerr << err.line << ":" << err.column << " PARSE ERROR: "
+                      << err.message << "\n";
+        }
+        std::cerr << "Cannot generate IR: parse errors present\n";
+        return 1;
+    }
+
+    SemanticAnalyzer analyzer;
+    analyzer.analyze(*ast);
+
+    if (!analyzer.get_errors().empty()) {
+        std::cerr << format_error_report(analyzer.get_errors());
+        std::cerr << "Cannot generate IR: semantic errors present\n";
+        return 1;
+    }
+
+    IRGenerator gen(analyzer.get_symbol_table(), analyzer.get_type_registry());
+    IRProgram program = gen.generate(*ast);
+
+    if (do_optimize) {
+        PeepholeOptimizer opt(program);
+        opt.optimize();
+        std::cerr << opt.get_optimization_report();
+    }
+
+    std::string output;
+    if (format == "dot") {
+        output = ir_to_dot(program);
+    } else if (format == "json") {
+        output = ir_to_json(program);
+    } else {
+        output = ir_to_text(program);
+    }
+
+    if (show_stats) {
+        output += "\n" + ir_statistics(program);
+    }
+
+    if (output_path.empty()) {
+        std::cout << output;
+    } else if (!write_output(output_path, output)) {
+        std::cerr << "Failed to write output file: " << output_path << "\n";
+        return 1;
+    }
+
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         print_usage();
@@ -281,6 +356,8 @@ int main(int argc, char** argv) {
     std::string format = "text";
     bool verbose = false;
     bool show_types = false;
+    bool show_stats = false;
+    bool do_optimize = false;
 
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -294,6 +371,10 @@ int main(int argc, char** argv) {
             verbose = true;
         } else if (arg == "--show-types") {
             show_types = true;
+        } else if (arg == "--stats") {
+            show_stats = true;
+        } else if (arg == "--optimize") {
+            do_optimize = true;
         }
     }
 
@@ -313,6 +394,9 @@ int main(int argc, char** argv) {
     }
     if (command == "symbols") {
         return cmd_symbols(input_path, output_path, format);
+    }
+    if (command == "ir") {
+        return cmd_ir(input_path, output_path, format, show_stats, do_optimize);
     }
 
     print_usage();

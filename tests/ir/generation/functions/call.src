@@ -1,0 +1,9 @@
+// Test: function call with parameters
+fn add(int a, int b) -> int {
+    return a + b;
+}
+
+fn main() -> int {
+    int result = add(3, 4);
+    return result;
+}

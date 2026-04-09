@@ -23,6 +23,11 @@ add_library(compiler_core
     src/semantic/symbol_table.cpp
     src/semantic/errors.cpp
     src/semantic/analyzer.cpp
+    src/ir/ir_instructions.cpp
+    src/ir/basic_block.cpp
+    src/ir/ir_generator.cpp
+    src/ir/ir_printer.cpp
+    src/ir/optimizer.cpp
 )
 target_include_directories(compiler_core PUBLIC src)
 
@@ -85,4 +90,19 @@ add_test(
     COMMAND semantic_test_runner
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/semantic/valid"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/semantic/invalid"
+)
+
+# Sprint 4: IR test runner
+add_executable(ir_test_runner tests/test_runner/ir_test_runner.cpp)
+target_link_libraries(ir_test_runner PRIVATE compiler_core)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+    target_link_libraries(ir_test_runner PRIVATE stdc++fs)
+endif()
+
+add_test(
+    NAME ir_tests
+    COMMAND ir_test_runner
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/ir/generation"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/ir/validation"
 )

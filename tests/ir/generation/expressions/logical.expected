@@ -1,0 +1,20 @@
+function main: int ()
+  entry:
+    STORE [a], 10    # int a = ...
+    STORE [b], 20    # int b = ...
+    t0 = LOAD [a]
+    t1 = LOAD [b]
+    t2 = CMP_LT t0, t1    # <
+    STORE [c], t2    # bool c = ...
+    t4 = LOAD [c]
+    t3 = MOVE false
+    JUMP_IF t4, L_and_rhs_0
+    JUMP L_and_end_1
+
+  L_and_rhs_0:
+    t3 = MOVE true
+    JUMP L_and_end_1
+
+  L_and_end_1:
+    STORE [d], t3    # bool d = ...
+    RETURN 0    # return

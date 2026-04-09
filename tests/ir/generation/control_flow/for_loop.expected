@@ -1,0 +1,28 @@
+function main: int ()
+  entry:
+    STORE [sum], 0    # int sum = ...
+    STORE [i], 1    # int i = ...
+    JUMP L_for_0
+
+  L_for_0:
+    t0 = LOAD [i]
+    t1 = CMP_LE t0, 5    # <=
+    JUMP_IF t1, L_forbody_1
+    JUMP L_endfor_3
+
+  L_forbody_1:
+    t2 = LOAD [sum]
+    t3 = LOAD [i]
+    t4 = ADD t2, t3    # +
+    STORE [sum], t4    # sum = ...
+    JUMP L_forupd_2
+
+  L_forupd_2:
+    t5 = LOAD [i]
+    t6 = ADD t5, 1    # +
+    STORE [i], t6    # i = ...
+    JUMP L_for_0
+
+  L_endfor_3:
+    t7 = LOAD [sum]
+    RETURN t7    # return

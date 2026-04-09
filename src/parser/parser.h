@@ -63,10 +63,6 @@ private:
 
     StmtPtr parseStatement();
     std::unique_ptr<BlockStmtNode> parseBlock();
-    StmtPtr parseMatchedStmt();
-    StmtPtr parseUnmatchedStmt();
-    StmtPtr parseIfStmtMatched();  // для matched if
-    StmtPtr parseIfStmtUnmatched(); // для unmatched if
     StmtPtr parseIfStmt();
     StmtPtr parseWhileStmt();
     StmtPtr parseForStmt();

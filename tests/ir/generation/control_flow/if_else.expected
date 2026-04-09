@@ -1,0 +1,19 @@
+function main: int ()
+  entry:
+    STORE [x], 5    # int x = ...
+    t0 = LOAD [x]
+    t1 = CMP_GT t0, 3    # >
+    JUMP_IF t1, L_then_0
+    JUMP L_else_1
+
+  L_then_0:
+    STORE [x], 10    # x = ...
+    JUMP L_endif_2
+
+  L_else_1:
+    STORE [x], 20    # x = ...
+    JUMP L_endif_2
+
+  L_endif_2:
+    t2 = LOAD [x]
+    RETURN t2    # return

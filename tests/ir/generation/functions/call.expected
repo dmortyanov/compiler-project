@@ -1,0 +1,15 @@
+function add: int (int a, int b)
+  entry:
+    t0 = LOAD [a]
+    t1 = LOAD [b]
+    t2 = ADD t0, t1    # +
+    RETURN t2    # return
+
+function main: int ()
+  entry:
+    PARAM 0, 3
+    PARAM 1, 4
+    t0 = CALL add, 2    # call add
+    STORE [result], t0    # int result = ...
+    t1 = LOAD [result]
+    RETURN t1    # return

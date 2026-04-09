@@ -1,0 +1,8 @@
+// Test: comparison and logical expressions
+fn main() -> int {
+    int a = 10;
+    int b = 20;
+    bool c = a < b;
+    bool d = c && true;
+    return 0;
+}

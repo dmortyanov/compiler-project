@@ -1,0 +1,20 @@
+function main: int ()
+  entry:
+    STORE [i], 0    # int i = ...
+    JUMP L_while_0
+
+  L_while_0:
+    t0 = LOAD [i]
+    t1 = CMP_LT t0, 10    # <
+    JUMP_IF t1, L_body_1
+    JUMP L_endwhile_2
+
+  L_body_1:
+    t2 = LOAD [i]
+    t3 = ADD t2, 1    # +
+    STORE [i], t3    # i = ...
+    JUMP L_while_0
+
+  L_endwhile_2:
+    t4 = LOAD [i]
+    RETURN t4    # return
