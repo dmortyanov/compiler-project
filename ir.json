@@ -1,0 +1,131 @@
+{
+  "functions": [
+    {
+      "name": "factorial",
+      "return_type": "int",
+      "params": [{"name": "n", "type": "int"}],
+      "blocks": [
+        {
+          "label": "entry",
+          "successors": [],
+          "predecessors": [],
+          "instructions": [
+            {
+              "opcode": "MOVE",
+              "dest": "t0",
+              "srcs": ["[n]"],
+              "line": 0
+            },
+            {
+              "opcode": "CMP_LE",
+              "dest": "t1",
+              "srcs": ["t0", "1"],
+              "line": 2
+            },
+            {
+              "opcode": "JUMP_IF",
+              "dest": "L_then_0",
+              "srcs": ["t1"],
+              "line": 0
+            },
+            {
+              "opcode": "JUMP",
+              "dest": "L_endif_1",
+              "srcs": [],
+              "line": 0
+            }
+          ]
+        },
+        {
+          "label": "L_then_0",
+          "successors": [],
+          "predecessors": [],
+          "instructions": [
+            {
+              "opcode": "RETURN",
+              "dest": "<none>",
+              "srcs": ["1"],
+              "line": 2
+            }
+          ]
+        },
+        {
+          "label": "L_endif_1",
+          "successors": [],
+          "predecessors": [],
+          "instructions": [
+            {
+              "opcode": "SUB",
+              "dest": "t2",
+              "srcs": ["t0", "1"],
+              "line": 3
+            },
+            {
+              "opcode": "PARAM",
+              "dest": "0",
+              "srcs": ["t2"],
+              "line": 3
+            },
+            {
+              "opcode": "CALL",
+              "dest": "t3",
+              "srcs": ["factorial", "1"],
+              "line": 3
+            },
+            {
+              "opcode": "MUL",
+              "dest": "t4",
+              "srcs": ["t0", "t3"],
+              "line": 3
+            },
+            {
+              "opcode": "RETURN",
+              "dest": "<none>",
+              "srcs": ["t4"],
+              "line": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "main",
+      "return_type": "int",
+      "params": [],
+      "blocks": [
+        {
+          "label": "entry",
+          "successors": [],
+          "predecessors": [],
+          "instructions": [
+            {
+              "opcode": "PARAM",
+              "dest": "0",
+              "srcs": ["5"],
+              "line": 7
+            },
+            {
+              "opcode": "CALL",
+              "dest": "t0",
+              "srcs": ["factorial", "1"],
+              "line": 7
+            },
+            {
+              "opcode": "MOVE",
+              "dest": "t1",
+              "srcs": ["t0"],
+              "line": 7,
+              "comment": "int result"
+            },
+            {
+              "opcode": "RETURN",
+              "dest": "<none>",
+              "srcs": ["t1"],
+              "line": 8
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+digraph CFG {
+  rankdir=TB;
+  node [shape=record, fontname="Courier New", fontsize=10];
+  edge [fontname="Courier New", fontsize=9];
+
+  subgraph cluster_factorial {
+    label="function factorial: int";
+    style=dashed;
+    color="#4A90D9";
+    fontname="Courier New";
+    fontsize=12;
+
+    factorial_entry [label="{entry:\l    t0 = MOVE [n]\l    t1 = CMP_LE t0, 1\l    JUMP_IF t1, L_then_0\l    JUMP L_endif_1\l}", style=filled, fillcolor="#D5F5E3"];
+    factorial_L_then_0 [label="{L_then_0:\l    RETURN 1\l}", style=filled, fillcolor="#FADBD8"];
+    factorial_L_endif_1 [label="{L_endif_1:\l    t2 = SUB t0, 1\l    PARAM 0, t2\l    t3 = CALL factorial, 1\l    t4 = MUL t0, t3\l    RETURN t4\l}", style=filled, fillcolor="#FADBD8"];
+  }
+
+  subgraph cluster_main {
+    label="function main: int";
+    style=dashed;
+    color="#4A90D9";
+    fontname="Courier New";
+    fontsize=12;
+
+    main_entry [label="{entry:\l    PARAM 0, 5\l    t0 = CALL factorial, 1\l    t1 = MOVE t0    # int result\l    RETURN t1\l}", style=filled, fillcolor="#D5F5E3"];
+  }
+
+}

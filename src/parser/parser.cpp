@@ -268,10 +268,10 @@ StmtPtr Parser::parseIfStmt() {
     auto node = std::make_unique<IfStmtNode>();
     node->line = peek().line;
     node->column = peek().column;
-    consume(TokenType::KW_IF, "Expected 'if'");
-    consume(TokenType::LPAREN, "Expected '(' after 'if'");
+    consume(TokenType::KW_IF, "Ожидается 'if'");
+    consume(TokenType::LPAREN, "Ожидается '(' после 'if'");
     node->condition = parseExpression();
-    consume(TokenType::RPAREN, "Expected ')' after if condition");
+    consume(TokenType::RPAREN, "Ожидается ')' после условия");
     node->then_branch = parseStatement();
     if (match(TokenType::KW_ELSE)) {
         node->else_branch = parseStatement();

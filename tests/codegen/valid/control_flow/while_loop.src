@@ -1,0 +1,14 @@
+// Test: while loop
+fn sum_to(int n) -> int {
+    int s = 0;
+    int i = 1;
+    while (i <= n) {
+        s = s + i;
+        i = i + 1;
+    }
+    return s;
+}
+
+fn main() -> int {
+    return sum_to(10);
+}

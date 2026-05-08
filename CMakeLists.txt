@@ -29,6 +29,14 @@ add_library(compiler_core
     src/ir/ir_generator.cpp
     src/ir/ir_printer.cpp
     src/ir/optimizer.cpp
+    # Sprint 5: x86-64 code generation
+    src/codegen/abi.cpp
+    src/codegen/stack_frame.cpp
+    src/codegen/register_allocator.cpp
+    src/codegen/x86_generator.cpp
+    # Sprint 6: LSRA + peephole
+    src/codegen/liveness.cpp
+    src/codegen/x86_peephole.cpp
 )
 target_include_directories(compiler_core PUBLIC src)
 
@@ -106,4 +114,18 @@ add_test(
     COMMAND ir_test_runner
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/ir/generation"
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/ir/validation"
+)
+
+# Sprint 5: codegen test runner
+add_executable(codegen_test_runner tests/test_runner/codegen_test_runner.cpp)
+target_link_libraries(codegen_test_runner PRIVATE compiler_core)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
+    target_link_libraries(codegen_test_runner PRIVATE stdc++fs)
+endif()
+
+add_test(
+    NAME codegen_tests
+    COMMAND codegen_test_runner
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/codegen/valid"
 )

@@ -1,0 +1,24 @@
+// Test: short-circuit logical operators (Sprint 6 LOGIC-1, LOGIC-2)
+fn safe_div(int a, int b) -> int {
+    // Short-circuit: if b == 0, skip division
+    if (b != 0 && a / b > 2) {
+        return 1;
+    }
+    return 0;
+}
+
+fn check_range(int x) -> int {
+    // Short-circuit OR: if x < 0, skip x > 100
+    if (x < 0 || x > 100) {
+        return 1;
+    }
+    return 0;
+}
+
+fn main() -> int {
+    int a = safe_div(10, 3);  // 10/3 = 3 > 2 -> 1
+    int b = safe_div(10, 0);  // short-circuit, b==0 -> 0
+    int c = check_range(-5);  // short-circuit, x<0 -> 1
+    int d = check_range(50);  // 50 >= 0 && 50 <= 100 -> 0
+    return a + b + c + d;     // 1 + 0 + 1 + 0 = 2
+}

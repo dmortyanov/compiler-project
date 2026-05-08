@@ -1,0 +1,18 @@
+// Test: full program with multiple features
+fn abs_val(int x) -> int {
+    if (x < 0) {
+        return -x;
+    }
+    return x;
+}
+
+fn fib(int n) -> int {
+    if (n <= 1) { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
+
+fn main() -> int {
+    int a = abs_val(-5);
+    int b = fib(7);
+    return a + b;
+}

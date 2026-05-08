@@ -1,0 +1,10 @@
+// Test: recursive factorial
+fn factorial(int n) -> int {
+    if (n <= 1) { return 1; }
+    return n * factorial(n - 1);
+}
+
+fn main() -> int {
+    int result = factorial(5);
+    return result;
+}

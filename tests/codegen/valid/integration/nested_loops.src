@@ -1,0 +1,18 @@
+// Test: nested loops with conditionals (Sprint 6 TEST-5)
+// sum of i*j where i == j, for i in 0..4, j in 0..2
+// Matches: (0,0)=0, (1,1)=1, (2,2)=4  -> sum = 5
+fn main() -> int {
+    int sum = 0;
+    int i = 0;
+    while (i < 5) {
+        int j = 0;
+        while (j < 3) {
+            if (i == j) {
+                sum = sum + i * j;
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    return sum;
+}

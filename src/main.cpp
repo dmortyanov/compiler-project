@@ -15,6 +15,7 @@
 #include "ir/ir_generator.h"
 #include "ir/ir_printer.h"
 #include "ir/optimizer.h"
+#include "codegen/x86_generator.h"
 
 static void print_usage() {
     std::cout << "Usage:\n";
@@ -23,6 +24,7 @@ static void print_usage() {
     std::cout << "  compiler check    --input <file> [--output <file>] [--verbose] [--show-types]\n";
     std::cout << "  compiler symbols  --input <file> [--format text|json] [--output <file>]\n";
     std::cout << "  compiler ir       --input <file> [--output <file>] [--format text|dot|json] [--stats] [--optimize]\n";
+    std::cout << "  compiler compile  --input <file> [--output <file>] [--optimize] [--regalloc lsra|stack] [--x86-peephole]\n";
 }
 
 static std::string read_source(const std::string& path) {
@@ -344,6 +346,82 @@ static int cmd_ir(const std::string& input_path,
     return 0;
 }
 
+// ---------------------------------------------------------------
+// Sprint 5: compile command (source → x86-64 NASM assembly)
+// ---------------------------------------------------------------
+static int cmd_compile(const std::string& input_path,
+                       const std::string& output_path,
+                       bool do_optimize,
+                       RegAllocStrategy regalloc_strategy,
+                       bool x86_peephole) {
+    std::string source = read_source(input_path);
+    if (source.empty()) {
+        std::ifstream test(input_path);
+        if (!test) {
+            std::cerr << "Failed to read input file: " << input_path << "\n";
+            return 1;
+        }
+    }
+
+    auto tokens = tokenize(source, true);
+
+    Parser parser(tokens);
+    auto ast = parser.parse();
+
+    if (!parser.errors().empty()) {
+        for (const auto& err : parser.errors()) {
+            std::cerr << err.line << ":" << err.column << " PARSE ERROR: "
+                      << err.message << "\n";
+        }
+        std::cerr << "Cannot compile: parse errors present\n";
+        return 1;
+    }
+
+    SemanticAnalyzer analyzer;
+    analyzer.analyze(*ast);
+
+    if (!analyzer.get_errors().empty()) {
+        std::cerr << format_error_report(analyzer.get_errors());
+        std::cerr << "Cannot compile: semantic errors present\n";
+        return 1;
+    }
+
+    IRGenerator gen(analyzer.get_symbol_table(), analyzer.get_type_registry());
+    IRProgram program = gen.generate(*ast);
+
+    if (do_optimize) {
+        PeepholeOptimizer opt(program);
+        opt.optimize();
+        std::cerr << opt.get_optimization_report();
+    }
+
+    X86Generator x86gen;
+    x86gen.set_regalloc_strategy(regalloc_strategy);
+    x86gen.set_peephole(x86_peephole);
+    std::string asm_output = x86gen.generate(program);
+
+    // Определяем имя выходного файла
+    std::string out_path = output_path;
+    if (out_path.empty()) {
+        // Заменяем расширение на .asm
+        out_path = input_path;
+        auto dot = out_path.rfind('.');
+        if (dot != std::string::npos) {
+            out_path = out_path.substr(0, dot);
+        }
+        out_path += ".asm";
+    }
+
+    if (!write_output(out_path, asm_output)) {
+        std::cerr << "Failed to write output file: " << out_path << "\n";
+        return 1;
+    }
+
+    std::cerr << "Compiled to: " << out_path << "\n";
+    std::cerr << x86gen.statistics();
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         print_usage();
@@ -358,6 +436,8 @@ int main(int argc, char** argv) {
     bool show_types = false;
     bool show_stats = false;
     bool do_optimize = false;
+    std::string regalloc_str = "stack";
+    bool x86_peephole = false;
 
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -375,6 +455,10 @@ int main(int argc, char** argv) {
             show_stats = true;
         } else if (arg == "--optimize") {
             do_optimize = true;
+        } else if (arg == "--regalloc" && i + 1 < argc) {
+            regalloc_str = argv[++i];
+        } else if (arg == "--x86-peephole") {
+            x86_peephole = true;
         }
     }
 
@@ -397,6 +481,13 @@ int main(int argc, char** argv) {
     }
     if (command == "ir") {
         return cmd_ir(input_path, output_path, format, show_stats, do_optimize);
+    }
+    if (command == "compile") {
+        RegAllocStrategy strategy = RegAllocStrategy::StackOnly;
+        if (regalloc_str == "lsra") {
+            strategy = RegAllocStrategy::LinearScan;
+        }
+        return cmd_compile(input_path, output_path, do_optimize, strategy, x86_peephole);
     }
 
     print_usage();

@@ -428,4 +428,62 @@ dot -Tpng cfg.dot -o cfg.png
 ```powershell
 cd build
 ctest -C Debug -VV
+```
+
+---
+
+## 12) Команда `compile` — Кодогенерация (Sprint 5)
+
+Преобразует исходный код в исполняемый NASM x86-64 ассемблер (System V AMD64 ABI). 
+
+Общий вид:
+
+```powershell
+.\build\Debug\compiler.exe compile --input <file> [--output <file>]
+```
+
+Пример базовой кодогенерации (на стеке):
+```powershell
+.\build\Debug\compiler.exe compile --input examples\factorial.src
+```
+
+### 12.1 Запуск сгенерированного кода (на Linux)
+
+Скомпилированный `.asm` файл нужно ассемблировать и слинковать вместе с `runtime.asm`:
+
+```bash
+nasm -f elf64 -o factorial.o factorial.asm
+nasm -f elf64 -o runtime.o src/runtime/runtime.asm
+ld -o factorial runtime.o factorial.o
+./factorial
+```
+
+---
+
+## 13) Оптимизации кодогенерации (Sprint 6)
+
+В 6 спринте добавлены продвинутые оптимизации x86-генератора:
+
+### 13.1 Распределение регистров (LSRA)
+
+Вместо медленного хранения всех промежуточных вычислений в стеке `[rbp-N]`, вы можете включить Linear Scan Register Allocation (алгоритм Полетто-Сарнака). Компилятор будет стараться удерживать долгоживущие переменные в callee-saved регистрах.
+
+```powershell
+.\build\Debug\compiler.exe compile --input examples\factorial.src --regalloc lsra
+```
+
+Вывод статистики покажет значительное сокращение числа обращений к памяти (`Loads` и `Stores` упадут до нуля, если переменных немного).
+
+### 13.2 Оконная x86 оптимизация (Peephole)
+
+Устраняет избыточные инструкции на уровне ассемблера (например `mov eax, eax` или `add eax, 0`).
+
+```powershell
+.\build\Debug\compiler.exe compile --input examples\factorial.src --x86-peephole
+```
+
+Можно комбинировать все оптимизации вместе:
+
+```powershell
+.\build\Debug\compiler.exe compile --input examples\factorial.src --optimize --regalloc lsra --x86-peephole
 ```

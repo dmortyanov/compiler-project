@@ -1,0 +1,12 @@
+// Test: if-else control flow
+fn max(int a, int b) -> int {
+    if (a > b) {
+        return a;
+    } else {
+        return b;
+    }
+}
+
+fn main() -> int {
+    return max(7, 12);
+}
