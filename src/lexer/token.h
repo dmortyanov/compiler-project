@@ -17,6 +17,7 @@ enum class TokenType {
     KW_VOID,
     KW_STRUCT,
     KW_FN,
+    KW_EXTERN,
 
     // Identifiers and literals
     IDENTIFIER,
@@ -59,6 +60,7 @@ enum class TokenType {
     SEMICOLON,
     COMMA,
     COLON,
+    DOT,
 
     END_OF_FILE
 };

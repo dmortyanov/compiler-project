@@ -105,8 +105,9 @@ private:
     bool has_phi_moves(const std::string& from_block,
                        const std::string& to_block) const;
 
-    // ---- операнды ----
+    // Вспомогательные методы загрузки/сохранения
     void load_operand(const Operand& op, const char* reg32, const char* reg64);
+    void load_operand_64(const Operand& op, const char* reg64);
     void store_to_dest(const Operand& dest, const char* reg32);
 
     // ---- вспомогательные ----

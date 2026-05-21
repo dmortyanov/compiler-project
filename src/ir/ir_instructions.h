@@ -16,6 +16,7 @@ enum class IROpcode {
     CMP_EQ, CMP_NE, CMP_LT, CMP_LE, CMP_GT, CMP_GE,
     // Memory
     LOAD, STORE, ALLOCA,
+    LOAD_ELEM, STORE_ELEM,
     // Data movement
     MOVE,
     // Control flow
@@ -110,6 +111,10 @@ struct IRInstruction {
     static IRInstruction make_load(Operand dest, Operand addr);
     static IRInstruction make_store(Operand addr, Operand value);
     static IRInstruction make_alloca(Operand dest, int size = 4);
+    
+    // Array operations
+    static IRInstruction make_load_elem(Operand dest, Operand array, Operand index);
+    static IRInstruction make_store_elem(Operand array, Operand index, Operand value);
 
     // Function
     static IRInstruction make_param(int index, Operand value);

@@ -27,6 +27,8 @@ std::string token_type_to_string(TokenType type) {
         return "KW_STRUCT";
     case TokenType::KW_FN:
         return "KW_FN";
+    case TokenType::KW_EXTERN:
+        return "KW_EXTERN";
     case TokenType::IDENTIFIER:
         return "IDENTIFIER";
     case TokenType::INT_LITERAL:
@@ -99,6 +101,8 @@ std::string token_type_to_string(TokenType type) {
         return "COMMA";
     case TokenType::COLON:
         return "COLON";
+    case TokenType::DOT:
+        return "DOT";
     case TokenType::END_OF_FILE:
         return "END_OF_FILE";
     default:

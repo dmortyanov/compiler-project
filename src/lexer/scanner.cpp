@@ -105,6 +105,8 @@ Token Scanner::scan_token() {
         return Token{TokenType::COMMA, ",", start_line, start_col, {}};
     case ':':
         return Token{TokenType::COLON, ":", start_line, start_col, {}};
+    case '.':
+        return Token{TokenType::DOT, ".", start_line, start_col, {}};
     case '+':
         if (match('+')) {
             return Token{TokenType::INC, "++", start_line, start_col, {}};
@@ -317,6 +319,8 @@ Token Scanner::identifier_or_keyword(int start_line, int start_col) {
         return Token{TokenType::KW_STRUCT, lexeme, start_line, start_col, {}};
     if (lexeme == "fn")
         return Token{TokenType::KW_FN, lexeme, start_line, start_col, {}};
+    if (lexeme == "extern")
+        return Token{TokenType::KW_EXTERN, lexeme, start_line, start_col, {}};
     if (lexeme == "true")
         return Token{TokenType::BOOL_LITERAL, lexeme, start_line, start_col,
                      true};

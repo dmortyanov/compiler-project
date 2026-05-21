@@ -261,6 +261,43 @@ public:
         indent_--;
     }
 
+    void visit(ArrayAccessExprNode& node) override {
+        if (expr_inline_) {
+            node.base->accept(*this);
+            out_ << "[";
+            node.index->accept(*this);
+            out_ << "]";
+            return;
+        }
+        ind();
+        out_ << "ArrayAccess:\n";
+        indent_++;
+        ind(); out_ << "Base:\n";
+        indent_++; node.base->accept(*this); indent_--;
+        ind(); out_ << "Index:\n";
+        indent_++; node.index->accept(*this); indent_--;
+        indent_--;
+    }
+
+    void visit(ArrayInitExprNode& node) override {
+        if (expr_inline_) {
+            out_ << "{";
+            for (std::size_t i = 0; i < node.elements.size(); ++i) {
+                if (i > 0) out_ << ", ";
+                node.elements[i]->accept(*this);
+            }
+            out_ << "}";
+            return;
+        }
+        ind();
+        out_ << "ArrayInit:\n";
+        indent_++;
+        for (auto& e : node.elements) {
+            e->accept(*this);
+        }
+        indent_--;
+    }
+
 private:
     std::ostringstream out_;
     int indent_ = 0;
@@ -465,6 +502,27 @@ public:
         out_ << "  n" << id << " -> n" << value << " [label=\"value\"];\n";
     }
 
+    void visit(ArrayAccessExprNode& node) override {
+        int id = next_id();
+        out_ << "  n" << id << " [label=\"ArrayAccess\", style=filled, fillcolor=\"#ffffc0\"];\n";
+        int base = peek_id();
+        node.base->accept(*this);
+        out_ << "  n" << id << " -> n" << base << " [label=\"base\"];\n";
+        int index = peek_id();
+        node.index->accept(*this);
+        out_ << "  n" << id << " -> n" << index << " [label=\"index\"];\n";
+    }
+
+    void visit(ArrayInitExprNode& node) override {
+        int id = next_id();
+        out_ << "  n" << id << " [label=\"ArrayInit\", style=filled, fillcolor=\"#ffffc0\"];\n";
+        for (auto& e : node.elements) {
+            int child = peek_id();
+            e->accept(*this);
+            out_ << "  n" << id << " -> n" << child << ";\n";
+        }
+    }
+
 private:
     std::ostringstream out_;
     int id_counter_ = 0;
@@ -639,6 +697,23 @@ public:
         out_ << ",\"value\":";
         node.value->accept(*this);
         out_ << "}";
+    }
+
+    void visit(ArrayAccessExprNode& node) override {
+        out_ << "{\"type\":\"ArrayAccess\",\"line\":" << node.line << ",\"base\":";
+        node.base->accept(*this);
+        out_ << ",\"index\":";
+        node.index->accept(*this);
+        out_ << "}";
+    }
+
+    void visit(ArrayInitExprNode& node) override {
+        out_ << "{\"type\":\"ArrayInit\",\"line\":" << node.line << ",\"elements\":[";
+        for (std::size_t i = 0; i < node.elements.size(); ++i) {
+            if (i > 0) out_ << ",";
+            node.elements[i]->accept(*this);
+        }
+        out_ << "]}";
     }
 
 private:

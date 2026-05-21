@@ -14,12 +14,18 @@ PeepholeOptimizer::PeepholeOptimizer(IRProgram& program)
 // optimize — run all passes
 // ---------------------------------------------------------------
 void PeepholeOptimizer::optimize() {
-    for (auto& func : program_.functions) {
-        fold_constants(func);
-        simplify_algebraic(func);
-        reduce_strength(func);
-        eliminate_dead_code(func);
-        chain_jumps(func);
+    int prev_modified = -1;
+    while (prev_modified != metrics_.instructions_modified) {
+        prev_modified = metrics_.instructions_modified;
+        for (auto& func : program_.functions) {
+            propagate_copies(func);
+            fold_constants(func);
+            simplify_algebraic(func);
+            reduce_strength(func);
+            eliminate_common_subexpressions(func);
+            eliminate_dead_code(func);
+            chain_jumps(func);
+        }
     }
 }
 
@@ -297,6 +303,8 @@ std::string PeepholeOptimizer::get_optimization_report() const {
     out << "Strength reductions:       " << metrics_.strength_reductions << "\n";
     out << "Dead code eliminated:      " << metrics_.dead_code_eliminated << "\n";
     out << "Jumps chained:             " << metrics_.jumps_chained << "\n";
+    out << "Copies propagated:         " << metrics_.copies_propagated << "\n";
+    out << "CSEs eliminated:           " << metrics_.common_subexpressions_eliminated << "\n";
     out << "Total modified:            " << metrics_.instructions_modified << "\n";
     out << "Total removed:             " << metrics_.instructions_removed << "\n";
 
@@ -308,4 +316,79 @@ std::string PeepholeOptimizer::get_optimization_report() const {
     }
 
     return out.str();
+}
+
+// ---------------------------------------------------------------
+// propagate_copies
+// ---------------------------------------------------------------
+void PeepholeOptimizer::propagate_copies(IRFunction& func) {
+    for (auto& block : func.blocks) {
+        std::map<std::string, Operand> copies;
+        for (size_t i = 0; i < block.instructions.size(); ++i) {
+            auto& instr = block.instructions[i];
+
+            for (auto& src : instr.srcs) {
+                if (src.is_temp() || src.kind == OperandKind::Variable) {
+                    if (copies.find(src.name) != copies.end()) {
+                        src = copies[src.name];
+                        metrics_.copies_propagated++;
+                        metrics_.instructions_modified++;
+                    }
+                }
+            }
+
+            if (!instr.dest.is_none()) {
+                for (auto it = copies.begin(); it != copies.end(); ) {
+                    if (it->second.name == instr.dest.name || it->first == instr.dest.name) {
+                        it = copies.erase(it);
+                    } else {
+                        ++it;
+                    }
+                }
+
+                if (instr.opcode == IROpcode::MOVE &&
+                    (instr.srcs[0].is_literal() || instr.srcs[0].is_temp() || instr.srcs[0].kind == OperandKind::Variable)) {
+                    copies[instr.dest.name] = instr.srcs[0];
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------
+// eliminate_common_subexpressions
+// ---------------------------------------------------------------
+void PeepholeOptimizer::eliminate_common_subexpressions(IRFunction& func) {
+    for (auto& block : func.blocks) {
+        std::map<std::string, Operand> expressions;
+        for (size_t i = 0; i < block.instructions.size(); ++i) {
+            auto& instr = block.instructions[i];
+
+            if (instr.opcode >= IROpcode::ADD && instr.opcode <= IROpcode::CMP_GE) {
+                std::string expr = opcode_to_string(instr.opcode) + " ";
+                for (size_t j = 0; j < instr.srcs.size(); ++j) {
+                    expr += operand_to_string(instr.srcs[j]) + (j == 0 ? ", " : "");
+                }
+                
+                if (expressions.find(expr) != expressions.end()) {
+                    Operand prev_dest = expressions[expr];
+                    instr = IRInstruction::make_move(instr.dest, prev_dest);
+                    metrics_.common_subexpressions_eliminated++;
+                    metrics_.instructions_modified++;
+                } else {
+                    expressions[expr] = instr.dest;
+                }
+            }
+
+            if (!instr.dest.is_none()) {
+                for (auto it = expressions.begin(); it != expressions.end(); ) {
+                    if (it->first.find(instr.dest.name) != std::string::npos) {
+                        it = expressions.erase(it);
+                    } else {
+                        ++it;
+                    }
+                }
+            }
+        }
+    }
 }

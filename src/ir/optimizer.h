@@ -26,6 +26,8 @@ struct OptimizationMetrics {
     int strength_reductions = 0;
     int dead_code_eliminated = 0;
     int jumps_chained = 0;
+    int copies_propagated = 0;
+    int common_subexpressions_eliminated = 0;
 };
 
 // ---------------------------------------------------------------
@@ -55,6 +57,8 @@ private:
     void reduce_strength(IRFunction& func);
     void eliminate_dead_code(IRFunction& func);
     void chain_jumps(IRFunction& func);
+    void propagate_copies(IRFunction& func);
+    void eliminate_common_subexpressions(IRFunction& func);
 
     void add_entry(const std::string& func, const std::string& block,
                    int idx, const std::string& desc);

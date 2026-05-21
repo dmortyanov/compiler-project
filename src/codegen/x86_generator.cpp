@@ -223,7 +223,7 @@ void X86Generator::gen_prologue(const IRFunction& /* func */) {
             emit("    mov " + alloc.phys_reg + ", " + x86abi::ARG_REGS_32[i]
                  + "    ; param " + pnames[i] + " -> " + alloc.phys_reg);
         } else {
-            emit("    mov " + frame_.slot_ref(pnames[i]) + ", " + x86abi::ARG_REGS_32[i]
+            emit("    mov " + frame_.slot_ref_64(pnames[i]) + ", " + x86abi::ARG_REGS_64[i]
                  + "    ; param " + pnames[i]);
         }
     }
@@ -315,12 +315,36 @@ void X86Generator::gen_instruction(const IRInstruction& instr) {
         case IROpcode::NOP:
             break;
 
-        // LOAD/STORE/ALLOCA — не генерируются текущим IR, заглушки
         case IROpcode::LOAD:
         case IROpcode::STORE:
-        case IROpcode::ALLOCA:
             emit("    ; TODO: " + opcode_to_string(instr.opcode));
             break;
+
+        case IROpcode::ALLOCA: {
+            int buf_offset = frame_.get_slot_offset(instr.dest.name + "_buf");
+            int ptr_offset = frame_.get_slot_offset(instr.dest.name);
+            emit("    lea rax, [rbp" + std::to_string(buf_offset) + "]");
+            emit("    mov qword [rbp" + std::to_string(ptr_offset) + "], rax");
+            break;
+        }
+
+        case IROpcode::LOAD_ELEM: {
+            load_operand_64(instr.srcs[0], "r8");
+            load_operand(instr.srcs[1], "ecx", "rcx");
+            emit("    movsxd rcx, ecx"); // Sign-extend index
+            emit("    mov eax, dword [r8 + rcx * 4]");
+            store_to_dest(instr.dest, "eax");
+            break;
+        }
+
+        case IROpcode::STORE_ELEM: {
+            load_operand_64(instr.dest, "r8");
+            load_operand(instr.srcs[0], "ecx", "rcx");
+            emit("    movsxd rcx, ecx"); // Sign-extend index
+            load_operand(instr.srcs[1], "eax", "rax");
+            emit("    mov dword [r8 + rcx * 4], eax");
+            break;
+        }
     }
 }
 
@@ -350,7 +374,7 @@ void X86Generator::load_operand(const Operand& op,
                 }
                 // Если совпадают — mov не нужен
             } else {
-                emit("    mov " + std::string(reg32) + ", " + frame_.slot_ref(op.name));
+                emit("    mov " + std::string(reg32) + ", " + frame_.slot_ref_32(op.name));
                 regalloc_.loads++;
             }
             break;
@@ -363,7 +387,7 @@ void X86Generator::load_operand(const Operand& op,
                     emit("    mov " + std::string(reg32) + ", " + alloc.phys_reg);
                 }
             } else if (frame_.has_slot(op.name)) {
-                emit("    mov " + std::string(reg32) + ", " + frame_.slot_ref(op.name));
+                emit("    mov " + std::string(reg32) + ", " + frame_.slot_ref_32(op.name));
                 regalloc_.loads++;
             } else {
                 emit("    ; WARNING: unknown variable " + op.name);
@@ -405,6 +429,22 @@ void X86Generator::load_operand(const Operand& op,
     }
 }
 
+void X86Generator::load_operand_64(const Operand& op, const char* reg64) {
+    if (op.is_temp() || op.kind == OperandKind::Variable) {
+        auto alloc = regalloc_.get_allocation(op.name);
+        if (alloc.in_register) {
+            // Pointer is stored in a 32-bit register (fallback logic).
+            emit("    movsxd " + std::string(reg64) + ", " + alloc.phys_reg);
+        } else {
+            emit("    mov " + std::string(reg64) + ", " + frame_.slot_ref_64(op.name));
+            regalloc_.loads++;
+        }
+    } else {
+        load_operand(op, "eax", "rax");
+        emit("    movsxd " + std::string(reg64) + ", eax");
+    }
+}
+
 // ---------------------------------------------------------------
 // store_to_dest — сохранить значение из регистра в слот dest
 // ---------------------------------------------------------------
@@ -418,7 +458,7 @@ void X86Generator::store_to_dest(const Operand& dest, const char* reg32) {
             }
             // Если совпадают — mov не нужен
         } else if (frame_.has_slot(dest.name)) {
-            emit("    mov " + frame_.slot_ref(dest.name) + ", " + std::string(reg32));
+            emit("    mov " + frame_.slot_ref_32(dest.name) + ", " + std::string(reg32));
             regalloc_.stores++;
         }
     }
@@ -656,7 +696,7 @@ void X86Generator::gen_call(const IRInstruction& instr) {
             emit("    sub rsp, 8");
         }
         for (int i = arg_count - 1; i >= x86abi::MAX_REG_ARGS; --i) {
-            load_operand(pending_params_[i], "eax", "rax");
+            load_operand_64(pending_params_[i], "rax");
             emit("    push rax");
         }
     }

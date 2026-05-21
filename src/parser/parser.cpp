@@ -127,6 +127,9 @@ std::string Parser::parseTypeName() {
 
 DeclPtr Parser::parseDeclaration() {
     try {
+        if (check(TokenType::KW_EXTERN)) {
+            return parseExternDecl();
+        }
         if (check(TokenType::KW_FN)) {
             return parseFunctionDecl();
         }
@@ -149,6 +152,53 @@ DeclPtr Parser::parseDeclaration() {
     }
 }
 
+std::unique_ptr<FunctionDeclNode> Parser::parseExternDecl() {
+    auto node = std::make_unique<FunctionDeclNode>();
+    node->line = peek().line;
+    node->column = peek().column;
+    node->is_extern = true;
+    consume(TokenType::KW_EXTERN, "Ожидается 'extern'");
+    consume(TokenType::KW_FN, "Ожидается 'fn' после 'extern'");
+    Token name_tok = consume(TokenType::IDENTIFIER, "Ожидается имя функции");
+    node->name = name_tok.lexeme;
+    consume(TokenType::LPAREN, "Ожидается '(' после имени функции");
+
+    if (!check(TokenType::RPAREN)) {
+        do {
+            if (match(TokenType::DOT)) {
+                consume(TokenType::DOT, "Ожидается '...'");
+                consume(TokenType::DOT, "Ожидается '...'");
+                ParamNode p;
+                p.name = "...";
+                p.type_name = "...";
+                node->parameters.push_back(std::move(p));
+                break;
+            }
+            ParamNode p;
+            p.line = peek().line;
+            p.column = peek().column;
+            p.type_name = parseTypeName();
+            Token pname = consume(TokenType::IDENTIFIER, "Ожидается имя параметра");
+            p.name = pname.lexeme;
+            if (match(TokenType::LBRACKET)) {
+                p.is_array = true;
+                consume(TokenType::RBRACKET, "Ожидается ']'");
+            }
+            node->parameters.push_back(std::move(p));
+        } while (match(TokenType::COMMA));
+    }
+    consume(TokenType::RPAREN, "Ожидается ')' после параметров");
+
+    if (match(TokenType::ARROW)) {
+        node->return_type = parseTypeName();
+    } else {
+        node->return_type = "void";
+    }
+
+    consume(TokenType::SEMICOLON, "Ожидается ';' после extern-объявления");
+    return node;
+}
+
 std::unique_ptr<FunctionDeclNode> Parser::parseFunctionDecl() {
     auto node = std::make_unique<FunctionDeclNode>();
     node->line = peek().line;
@@ -166,6 +216,10 @@ std::unique_ptr<FunctionDeclNode> Parser::parseFunctionDecl() {
             p.type_name = parseTypeName();
             Token pname = consume(TokenType::IDENTIFIER, "Ожидается имя параметра");
             p.name = pname.lexeme;
+            if (match(TokenType::LBRACKET)) {
+                p.is_array = true;
+                consume(TokenType::RBRACKET, "Ожидается ']'");
+            }
             node->parameters.push_back(std::move(p));
         } while (match(TokenType::COMMA));
     }
@@ -210,10 +264,28 @@ std::unique_ptr<VarDeclStmtNode> Parser::parseVarDecl(
     node->line = line;
     node->column = col;
     node->type_name = type_name;
-    Token name_tok = consume(TokenType::IDENTIFIER, "Ожидается имя функции");
+    Token name_tok = consume(TokenType::IDENTIFIER, "Ожидается имя переменной");
     node->name = name_tok.lexeme;
+    
+    while (match(TokenType::LBRACKET)) {
+        node->is_array = true;
+        if (check(TokenType::INT_LITERAL)) {
+            auto val = std::get<std::int32_t>(peek().literal);
+            node->array_sizes.push_back(val);
+            advance();
+        } else {
+            report_error(peek(), "Размер массива должен быть константой");
+            node->array_sizes.push_back(1); // fallback
+        }
+        consume(TokenType::RBRACKET, "Ожидается ']' после размера массива");
+    }
+    
     if (match(TokenType::ASSIGN)) {
-        node->initializer = parseExpression();
+        if (check(TokenType::LBRACE)) {
+            node->array_init = std::unique_ptr<ArrayInitExprNode>(static_cast<ArrayInitExprNode*>(parseArrayInit().release()));
+        } else {
+            node->initializer = parseExpression();
+        }
     }
     consume(TokenType::SEMICOLON, "Ожидается ';' после объявления переменной");
     return node;
@@ -604,6 +676,17 @@ ExprPtr Parser::parsePrimary() {
         ident->column = c;
         ident->name = name;
         ExprPtr base = std::move(ident);
+        
+        while (match(TokenType::LBRACKET)) {
+            auto arr_node = std::make_unique<ArrayAccessExprNode>();
+            arr_node->line = previous().line;
+            arr_node->column = previous().column;
+            arr_node->base = std::move(base);
+            arr_node->index = parseExpression();
+            consume(TokenType::RBRACKET, "Ожидается ']' после индекса массива");
+            base = std::move(arr_node);
+        }
+        
         if (match({TokenType::INC, TokenType::DEC})) {
             auto post = std::make_unique<PostfixExprNode>();
             post->line = previous().line;
@@ -633,4 +716,18 @@ ExprPtr Parser::parsePrimary() {
     dummy->value = 0;
     dummy->raw = "0";
     return dummy;
+}
+
+ExprPtr Parser::parseArrayInit() {
+    auto node = std::make_unique<ArrayInitExprNode>();
+    node->line = peek().line;
+    node->column = peek().column;
+    consume(TokenType::LBRACE, "Ожидается '{' для инициализации массива");
+    if (!check(TokenType::RBRACE)) {
+        do {
+            node->elements.push_back(parseExpression());
+        } while (match(TokenType::COMMA));
+    }
+    consume(TokenType::RBRACE, "Ожидается '}' после элементов массива");
+    return node;
 }

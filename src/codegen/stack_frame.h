@@ -33,8 +33,14 @@ public:
     /// Построить раскладку фрейма по IR-функции.
     void build(const IRFunction& func);
 
-    /// Получить NASM-ссылку на слот: "dword [rbp-8]"
-    std::string slot_ref(const std::string& name) const;
+    /// Получить NASM-ссылку на слот (32-bit): "dword [rbp-8]"
+    std::string slot_ref_32(const std::string& name) const;
+
+    /// Получить NASM-ссылку на слот (64-bit): "qword [rbp-8]"
+    std::string slot_ref_64(const std::string& name) const;
+
+    /// Получить числовое смещение слота
+    int get_slot_offset(const std::string& name) const;
 
     /// Есть ли слот с таким именем?
     bool has_slot(const std::string& name) const;

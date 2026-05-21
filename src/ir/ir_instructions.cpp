@@ -26,6 +26,8 @@ std::string opcode_to_string(IROpcode op) {
         case IROpcode::LOAD:         return "LOAD";
         case IROpcode::STORE:        return "STORE";
         case IROpcode::ALLOCA:       return "ALLOCA";
+        case IROpcode::LOAD_ELEM:    return "LOAD_ELEM";
+        case IROpcode::STORE_ELEM:   return "STORE_ELEM";
         case IROpcode::MOVE:         return "MOVE";
         case IROpcode::JUMP:         return "JUMP";
         case IROpcode::JUMP_IF:      return "JUMP_IF";
@@ -234,6 +236,24 @@ IRInstruction IRInstruction::make_alloca(Operand dest, int size) {
     return i;
 }
 
+IRInstruction IRInstruction::make_load_elem(Operand dest, Operand array, Operand index) {
+    IRInstruction i;
+    i.opcode = IROpcode::LOAD_ELEM;
+    i.dest = dest;
+    i.srcs.push_back(array);
+    i.srcs.push_back(index);
+    return i;
+}
+
+IRInstruction IRInstruction::make_store_elem(Operand array, Operand index, Operand value) {
+    IRInstruction i;
+    i.opcode = IROpcode::STORE_ELEM;
+    i.dest = array;
+    i.srcs.push_back(index);
+    i.srcs.push_back(value);
+    return i;
+}
+
 IRInstruction IRInstruction::make_param(int index, Operand value) {
     IRInstruction i;
     i.opcode = IROpcode::PARAM;
@@ -325,6 +345,18 @@ std::string instruction_to_string(const IRInstruction& instr) {
         case IROpcode::ALLOCA:
             result += operand_to_string(instr.dest) + " = ALLOCA "
                     + operand_to_string(instr.srcs[0]);
+            break;
+
+        case IROpcode::LOAD_ELEM:
+            result += operand_to_string(instr.dest) + " = LOAD_ELEM "
+                    + operand_to_string(instr.srcs[0]) + "["
+                    + operand_to_string(instr.srcs[1]) + "]";
+            break;
+
+        case IROpcode::STORE_ELEM:
+            result += "STORE_ELEM " + operand_to_string(instr.dest) + "["
+                    + operand_to_string(instr.srcs[0]) + "], "
+                    + operand_to_string(instr.srcs[1]);
             break;
 
         case IROpcode::MOVE:

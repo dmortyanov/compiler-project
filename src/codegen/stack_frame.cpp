@@ -38,7 +38,7 @@ void StackFrame::build(const IRFunction& func) {
 
     // 1. Параметры
     for (const auto& param : func.params) {
-        alloc_slot(param.first, x86abi::DWORD_SIZE);
+        alloc_slot(param.first, x86abi::QWORD_SIZE);
         param_names_.push_back(param.first);
     }
     param_count_ = static_cast<int>(func.params.size());
@@ -47,16 +47,21 @@ void StackFrame::build(const IRFunction& func) {
     for (const auto& block : func.blocks) {
         for (const auto& instr : block.instructions) {
             // Destination
-            if (instr.dest.is_temp() && !has_slot(instr.dest.name)) {
-                alloc_slot(instr.dest.name, x86abi::DWORD_SIZE);
+            if (instr.opcode == IROpcode::ALLOCA) {
+                if (!has_slot(instr.dest.name + "_buf")) {
+                    alloc_slot(instr.dest.name + "_buf", instr.srcs[0].int_val);
+                    alloc_slot(instr.dest.name, x86abi::QWORD_SIZE);
+                }
+            } else if (instr.dest.is_temp() && !has_slot(instr.dest.name)) {
+                alloc_slot(instr.dest.name, x86abi::QWORD_SIZE);
             }
             // Sources
             for (const auto& src : instr.srcs) {
                 if (src.is_temp() && !has_slot(src.name)) {
-                    alloc_slot(src.name, x86abi::DWORD_SIZE);
+                    alloc_slot(src.name, x86abi::QWORD_SIZE);
                 }
                 if (src.kind == OperandKind::Variable && !has_slot(src.name)) {
-                    alloc_slot(src.name, x86abi::DWORD_SIZE);
+                    alloc_slot(src.name, x86abi::QWORD_SIZE);
                 }
             }
         }
@@ -72,15 +77,27 @@ void StackFrame::build(const IRFunction& func) {
 }
 
 // ---------------------------------------------------------------
-// slot_ref — NASM-ссылка на слот, например "dword [rbp-8]"
+// slot_ref_32 — NASM-ссылка на слот, например "dword [rbp-8]"
 // ---------------------------------------------------------------
-std::string StackFrame::slot_ref(const std::string& name) const {
+std::string StackFrame::slot_ref_32(const std::string& name) const {
     auto it = slots_.find(name);
-    if (it == slots_.end()) {
-        return "dword [UNKNOWN_SLOT_" + name + "]";
-    }
-    // offset отрицательный → to_string даст "-8", итого "dword [rbp-8]"
+    if (it == slots_.end()) return "dword [UNKNOWN_SLOT_" + name + "]";
     return "dword [rbp" + std::to_string(it->second.offset) + "]";
+}
+
+// ---------------------------------------------------------------
+// slot_ref_64 — NASM-ссылка на слот, например "qword [rbp-8]"
+// ---------------------------------------------------------------
+std::string StackFrame::slot_ref_64(const std::string& name) const {
+    auto it = slots_.find(name);
+    if (it == slots_.end()) return "qword [UNKNOWN_SLOT_" + name + "]";
+    return "qword [rbp" + std::to_string(it->second.offset) + "]";
+}
+
+int StackFrame::get_slot_offset(const std::string& name) const {
+    auto it = slots_.find(name);
+    if (it == slots_.end()) return 0;
+    return it->second.offset;
 }
 
 bool StackFrame::has_slot(const std::string& name) const {

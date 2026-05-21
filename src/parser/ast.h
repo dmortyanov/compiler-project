@@ -18,6 +18,8 @@ struct UnaryExprNode;
 struct CallExprNode;
 struct PostfixExprNode;
 struct AssignmentExprNode;
+struct ArrayAccessExprNode;
+struct ArrayInitExprNode;
 
 struct BlockStmtNode;
 struct ExprStmtNode;
@@ -51,6 +53,8 @@ public:
     virtual void visit(VarDeclStmtNode& node) = 0;
     virtual void visit(FunctionDeclNode& node) = 0;
     virtual void visit(StructDeclNode& node) = 0;
+    virtual void visit(ArrayAccessExprNode& node) = 0;
+    virtual void visit(ArrayInitExprNode& node) = 0;
 };
 
 struct ASTNode {
@@ -115,6 +119,17 @@ struct AssignmentExprNode : ExpressionNode {
     void accept(ASTVisitor& v) override { v.visit(*this); }
 };
 
+struct ArrayAccessExprNode : ExpressionNode {
+    ExprPtr base;
+    ExprPtr index;
+    void accept(ASTVisitor& v) override { v.visit(*this); }
+};
+
+struct ArrayInitExprNode : ExpressionNode {
+    std::vector<ExprPtr> elements;
+    void accept(ASTVisitor& v) override { v.visit(*this); }
+};
+
 struct BlockStmtNode : StatementNode {
     std::vector<StmtPtr> statements;
     void accept(ASTVisitor& v) override { v.visit(*this); }
@@ -156,6 +171,11 @@ struct VarDeclStmtNode : StatementNode, DeclarationNode {
     std::string type_name;
     std::string name;
     ExprPtr initializer;
+    
+    bool is_array = false;
+    std::vector<int> array_sizes;
+    std::unique_ptr<ArrayInitExprNode> array_init;
+    
     void accept(ASTVisitor& v) override { v.visit(*this); }
 };
 
@@ -164,6 +184,7 @@ struct ParamNode {
     std::string name;
     int line = 0;
     int column = 0;
+    bool is_array = false;
 };
 
 struct FunctionDeclNode : DeclarationNode {
@@ -171,6 +192,7 @@ struct FunctionDeclNode : DeclarationNode {
     std::vector<ParamNode> parameters;
     std::string return_type;
     std::unique_ptr<BlockStmtNode> body;
+    bool is_extern = false;
     void accept(ASTVisitor& v) override { v.visit(*this); }
 };
 

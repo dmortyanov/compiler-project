@@ -57,6 +57,7 @@ private:
     // Grammar rules
     DeclPtr parseDeclaration();
     std::unique_ptr<FunctionDeclNode> parseFunctionDecl();
+    std::unique_ptr<FunctionDeclNode> parseExternDecl();
     std::unique_ptr<StructDeclNode> parseStructDecl();
     std::unique_ptr<VarDeclStmtNode> parseVarDecl(const std::string& type_name,
                                                     int line, int col);
@@ -79,6 +80,7 @@ private:
     ExprPtr parseMultiplicative();
     ExprPtr parseUnary();
     ExprPtr parsePrimary();
+    ExprPtr parseArrayInit();
 
     bool isTypeName() const;
     std::string parseTypeName();

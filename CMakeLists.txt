@@ -29,6 +29,7 @@ add_library(compiler_core
     src/ir/ir_generator.cpp
     src/ir/ir_printer.cpp
     src/ir/optimizer.cpp
+    src/ir/optimization_passes.cpp
     # Sprint 5: x86-64 code generation
     src/codegen/abi.cpp
     src/codegen/stack_frame.cpp

@@ -45,6 +45,33 @@ Type* TypeRegistry::register_struct(const std::string& name,
     return ptr;
 }
 
+Type* TypeRegistry::register_array(Type* element_type, const std::vector<int>& sizes) {
+    if (!element_type) return error_;
+    std::string name = element_type->name;
+    for (int size : sizes) {
+        if (size > 0) name += "[" + std::to_string(size) + "]";
+        else name += "[]";
+    }
+    
+    // Check if already registered
+    if (auto existing = resolve(name)) return existing;
+    
+    int total_size = element_type->size_bytes;
+    for (int size : sizes) {
+        if (size > 0) total_size *= size;
+        else total_size = 8; // Pointer size for unsized array parameter
+    }
+    
+    auto t = std::make_unique<Type>(TypeKind::Array, name, total_size);
+    t->array_element_type = element_type;
+    t->array_sizes = sizes;
+    
+    Type* ptr = t.get();
+    owned_.push_back(std::move(t));
+    named_types_[name] = ptr;
+    return ptr;
+}
+
 Type* TypeRegistry::register_function(const std::string& name,
                                       const std::vector<FunctionParam>& params,
                                       const std::string& return_type) {
@@ -63,6 +90,17 @@ bool TypeRegistry::is_compatible(const Type* from, const Type* to) const {
     if (*from == *to) return true;
 
     if (from->kind == TypeKind::Int && to->kind == TypeKind::Float) return true;
+
+    if (from->kind == TypeKind::Array && to->kind == TypeKind::Array) {
+        if (from->array_element_type != to->array_element_type) return false;
+        if (from->array_sizes.size() != to->array_sizes.size()) return false;
+        for (std::size_t i = 0; i < from->array_sizes.size(); ++i) {
+            // Unsized array parameter accepts any size
+            if (to->array_sizes[i] == 0 || from->array_sizes[i] == 0) continue;
+            if (to->array_sizes[i] != from->array_sizes[i]) return false;
+        }
+        return true;
+    }
 
     return false;
 }

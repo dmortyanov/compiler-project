@@ -16,6 +16,7 @@ enum class TypeKind {
     String,
     Struct,
     Function,
+    Array,
     Error   // poison type – prevents cascading errors
 };
 
@@ -42,6 +43,10 @@ public:
     // Struct data (only when kind == Struct)
     std::vector<StructField> fields;
 
+    // Array data (only when kind == Array)
+    Type* array_element_type = nullptr;
+    std::vector<int> array_sizes;
+
     // Function data (only when kind == Function)
     std::vector<FunctionParam> params;
     std::string return_type_name;               // e.g. "int", "void"
@@ -59,6 +64,7 @@ public:
     bool is_numeric() const { return kind == TypeKind::Int || kind == TypeKind::Float; }
     bool is_bool()    const { return kind == TypeKind::Bool; }
     bool is_void()    const { return kind == TypeKind::Void; }
+    bool is_array()   const { return kind == TypeKind::Array; }
 };
 
 // ---------------------------------------------------------------
@@ -82,6 +88,9 @@ public:
     // Register a struct type
     Type* register_struct(const std::string& name,
                           const std::vector<StructField>& fields);
+
+    // Register an array type
+    Type* register_array(Type* element_type, const std::vector<int>& sizes);
 
     // Register a function type
     Type* register_function(const std::string& name,

@@ -1,60 +1,52 @@
-# Language Specification (Sprint 1)
+# MiniCompiler Language Specification
 
-## 1. Character Set
+## Грамматика (EBNF)
 
-- Input encoding: UTF-8.
+```ebnf
+program        = { decl } ;
+decl           = var_decl | func_decl | struct_decl | extern_decl ;
+var_decl       = type ident [ "[" [ int_lit ] "]" ] [ "=" expr | "{" expr_list "}" ] ";" ;
+extern_decl    = "extern" "fn" ident "(" [ param_list ] ")" "->" type ";" ;
+func_decl      = "fn" ident "(" [ param_list ] ")" "->" type block ;
+struct_decl    = "struct" ident "{" { var_decl } "}" ;
 
-## 2. Lexical Grammar (EBNF)
+param_list     = param { "," param } ;
+param          = type ident [ "[" "]" ] ;
+type           = "int" | "float" | "bool" | "string" | "void" | ident ;
 
+block          = "{" { stmt } "}" ;
+stmt           = var_decl | assign_stmt | if_stmt | while_stmt | for_stmt | return_stmt | expr_stmt ;
+
+assign_stmt    = expr "=" expr ";" ;
+if_stmt        = "if" "(" expr ")" block [ "else" block ] ;
+while_stmt     = "while" "(" expr ")" block ;
+for_stmt       = "for" "(" var_decl expr ";" assign_stmt_no_semi ")" block ;
+return_stmt    = "return" [ expr ] ";" ;
+expr_stmt      = expr ";" ;
+
+expr           = logic_or ;
+logic_or       = logic_and { "||" logic_and } ;
+logic_and      = equality { "&&" equality } ;
+equality       = comparison { ("==" | "!=") comparison } ;
+comparison     = term { ("<" | "<=" | ">" | ">=") term } ;
+term           = factor { ("+" | "-") factor } ;
+factor         = unary { ("*" | "/" | "%") unary } ;
+unary          = ("-" | "!") unary | postfix ;
+postfix        = primary { "[" expr "]" | "(" [ expr_list ] ")" | "." ident } ;
+primary        = int_lit | float_lit | bool_lit | string_lit | ident | "(" expr ")" ;
+
+expr_list      = expr { "," expr } ;
 ```
-letter         = "A"…"Z" | "a"…"z" ;
-digit          = "0"…"9" ;
-underscore     = "_" ;
-newline        = "\n" | "\r\n" ;
-whitespace     = " " | "\t" | newline ;
 
-identifier     = letter , { letter | digit | underscore } ;
-int_literal    = digit , { digit } ;
-float_literal  = digit , { digit } , "." , digit , { digit } ;
-bool_literal   = "true" | "false" ;
-string_literal = '"' , { character - '"' - newline | escape } , '"' ;
-escape         = "\" , ( "n" | "t" | "r" | '"' | "\" ) ;
+## Типы данных
+- `int` (32-bit integer)
+- `float` (64-bit float - in progress)
+- `bool` (1-bit, stored as 8-bit/32-bit)
+- `string` (64-bit pointer)
+- `void` (only for return types)
+- `struct` (user-defined types)
+- Массивы: `type[]`, статический размер, индексация с 0.
 
-keyword        =
-    "if" | "else" | "while" | "for" | "int" | "float" | "bool" |
-    "return" | "true" | "false" | "void" | "struct" | "fn" ;
-
-operator       =
-    "+" | "-" | "*" | "/" | "%" |
-    "==" | "!=" | "<" | "<=" | ">" | ">=" |
-    "&&" | "||" | "!" |
-    "=" | "+=" | "-=" | "*=" | "/=" ;
-
-delimiter      = "(" | ")" | "{" | "}" | "[" | "]" | ";" | "," | ":" ;
-
-comment        = line_comment | block_comment ;
-line_comment   = "//" , { character - newline } ;
-block_comment  = "/*" , { character - "*/" } , "*/" ;
-```
-
-## 3. Token Categories
-
-- Keywords (reserved words)
-- Identifiers
-- Literals: integer, float, string, boolean
-- Operators
-- Delimiters
-
-## 4. Regular Expressions (Informal)
-
-- **Identifier:** `[A-Za-z][A-Za-z0-9_]*` (max length 255)
-- **Integer:** `[0-9]+` with range [-2^31, 2^31-1]
-- **Float:** `[0-9]+\.[0-9]+`
-- **String:** `"([^"\r\n]|\\.)*"`
-- **Boolean:** `true|false`
-
-## 5. Whitespace & Comments
-
-- Whitespace: space, tab, newline (`\n`), carriage return (`\r`)
-- Line comments: `//` to end-of-line
-- Block comments: `/* ... */` (nested comments not required)
+## Вызовы C/C++ функций
+Вы можете объявлять внешние функции из libc (например, `printf`, `malloc`) с помощью ключевого слова `extern`. 
+Внешние функции линкуются на этапе сборки GCC. Вариативные функции поддерживаются частично.

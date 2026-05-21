@@ -263,16 +263,36 @@ void IRGenerator::visit(BlockStmtNode& node) {
 
 void IRGenerator::visit(VarDeclStmtNode& node) {
     Operand rhs = Operand::int_lit(0);
+    bool is_alloc = false;
+    
     if (node.initializer) {
         node.initializer->accept(*this);
         rhs = last_result_;
+    } else if (node.array_init) {
+        node.array_init->accept(*this);
+        rhs = last_result_;
+    } else if (node.is_array) {
+        int total_elements = 1;
+        for (int sz : node.array_sizes) {
+            if (sz > 0) total_elements *= sz;
+        }
+        rhs = new_temp(node.type_name);
+        auto instr = IRInstruction::make_alloca(rhs, total_elements * 4); // Default 4-byte elems, handled by backend
+        instr.source_line = node.line;
+        emit(instr);
+        is_alloc = true;
     }
 
     Operand tmp = new_temp(node.type_name);
     auto instr = IRInstruction::make_move(tmp, rhs);
-    instr.source_line = node.line;
-    instr.comment = node.type_name + " " + node.name;
-    emit(instr);
+    if (is_alloc) {
+        // Do not make_move if it's already a temp containing pointer from alloca, just use rhs
+        tmp = rhs;
+    } else {
+        instr.source_line = node.line;
+        instr.comment = node.type_name + " " + node.name;
+        emit(instr);
+    }
     
     if (!scope_stack_.empty())
         scope_stack_.back()[node.name] = tmp;
@@ -645,30 +665,90 @@ void IRGenerator::visit(AssignmentExprNode& node) {
     node.value->accept(*this);
     Operand rhs = last_result_;
 
-    auto* ident = dynamic_cast<IdentifierExprNode*>(node.target.get());
-    if (!ident) {
-        last_result_ = rhs;
-        return;
-    }
+    if (auto* ident = dynamic_cast<IdentifierExprNode*>(node.target.get())) {
+        if (node.op == "=") {
+            Operand result = new_temp(type_string(node.resolved_type));
+            auto instr = IRInstruction::make_move(result, rhs);
+            instr.source_line = node.line;
+            emit(instr);
+            bind_variable(ident->name, result);
+            last_result_ = rhs; // assignment evaluates to assigned value
+        } else {
+            Operand old_val = lookup_variable(ident->name);
+            std::string base_op = node.op.substr(0, node.op.size() - 1);
+            IROpcode opcode = binary_op_to_opcode(base_op);
+            
+            Operand result = new_temp(type_string(node.resolved_type));
+            auto binop = IRInstruction::make_binary(opcode, result, old_val, rhs);
+            binop.source_line = node.line;
+            emit(binop);
+            
+            bind_variable(ident->name, result);
+            last_result_ = result;
+        }
+    } else if (auto* arr_acc = dynamic_cast<ArrayAccessExprNode*>(node.target.get())) {
+        arr_acc->base->accept(*this);
+        Operand array_op = last_result_;
+        arr_acc->index->accept(*this);
+        Operand index_op = last_result_;
 
-    if (node.op == "=") {
-        Operand result = new_temp(type_string(node.resolved_type));
-        auto instr = IRInstruction::make_move(result, rhs);
-        instr.source_line = node.line;
-        emit(instr);
-        bind_variable(ident->name, result);
-        last_result_ = rhs; // assignment evaluates to assigned value
+        if (node.op == "=") {
+            auto instr = IRInstruction::make_store_elem(array_op, index_op, rhs);
+            instr.source_line = node.line;
+            emit(instr);
+            last_result_ = rhs;
+        } else {
+            Operand old_val = new_temp(type_string(node.resolved_type));
+            auto load_instr = IRInstruction::make_load_elem(old_val, array_op, index_op);
+            load_instr.source_line = node.line;
+            emit(load_instr);
+
+            std::string base_op = node.op.substr(0, node.op.size() - 1);
+            IROpcode opcode = binary_op_to_opcode(base_op);
+            
+            Operand result = new_temp(type_string(node.resolved_type));
+            auto binop = IRInstruction::make_binary(opcode, result, old_val, rhs);
+            binop.source_line = node.line;
+            emit(binop);
+            
+            auto store_instr = IRInstruction::make_store_elem(array_op, index_op, result);
+            store_instr.source_line = node.line;
+            emit(store_instr);
+            
+            last_result_ = result;
+        }
     } else {
-        Operand old_val = lookup_variable(ident->name);
-        std::string base_op = node.op.substr(0, node.op.size() - 1);
-        IROpcode opcode = binary_op_to_opcode(base_op);
-        
-        Operand result = new_temp(type_string(node.resolved_type));
-        auto binop = IRInstruction::make_binary(opcode, result, old_val, rhs);
-        binop.source_line = node.line;
-        emit(binop);
-        
-        bind_variable(ident->name, result);
-        last_result_ = result;
+        last_result_ = rhs;
     }
+}
+
+void IRGenerator::visit(ArrayAccessExprNode& node) {
+    node.base->accept(*this);
+    Operand array = last_result_;
+    
+    node.index->accept(*this);
+    Operand index = last_result_;
+
+    Operand dest = new_temp(type_string(node.resolved_type));
+    auto instr = IRInstruction::make_load_elem(dest, array, index);
+    instr.source_line = node.line;
+    emit(instr);
+    last_result_ = dest;
+}
+
+void IRGenerator::visit(ArrayInitExprNode& node) {
+    int size = node.elements.size();
+    Operand array_dest = new_temp(type_string(node.resolved_type));
+    auto alloca = IRInstruction::make_alloca(array_dest, size * 4); // Default element size 4
+    alloca.source_line = node.line;
+    emit(alloca);
+    
+    for (size_t i = 0; i < node.elements.size(); ++i) {
+        node.elements[i]->accept(*this);
+        Operand elem_val = last_result_;
+        auto store = IRInstruction::make_store_elem(array_dest, Operand::int_lit(i), elem_val);
+        store.source_line = node.line;
+        emit(store);
+    }
+    last_result_ = array_dest;
 }

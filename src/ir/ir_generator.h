@@ -35,6 +35,8 @@ public:
     void visit(CallExprNode& node) override;
     void visit(PostfixExprNode& node) override;
     void visit(AssignmentExprNode& node) override;
+    void visit(ArrayAccessExprNode& node) override;
+    void visit(ArrayInitExprNode& node) override;
     void visit(BlockStmtNode& node) override;
     void visit(ExprStmtNode& node) override;
     void visit(IfStmtNode& node) override;

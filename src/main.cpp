@@ -15,6 +15,7 @@
 #include "ir/ir_generator.h"
 #include "ir/ir_printer.h"
 #include "ir/optimizer.h"
+#include "ir/optimization_passes.h"
 #include "codegen/x86_generator.h"
 
 static void print_usage() {
@@ -281,7 +282,9 @@ static int cmd_symbols(const std::string& input_path,
 static int cmd_ir(const std::string& input_path,
                   const std::string& output_path,
                   const std::string& format,
-                  bool show_stats, bool do_optimize) {
+                  bool show_stats,
+                  bool do_optimize,
+                  bool do_inline) {
     std::string source = read_source(input_path);
     if (source.empty()) {
         std::ifstream test(input_path);
@@ -352,6 +355,7 @@ static int cmd_ir(const std::string& input_path,
 static int cmd_compile(const std::string& input_path,
                        const std::string& output_path,
                        bool do_optimize,
+                       bool do_inline,
                        RegAllocStrategy regalloc_strategy,
                        bool x86_peephole) {
     std::string source = read_source(input_path);
@@ -388,6 +392,12 @@ static int cmd_compile(const std::string& input_path,
 
     IRGenerator gen(analyzer.get_symbol_table(), analyzer.get_type_registry());
     IRProgram program = gen.generate(*ast);
+
+    if (do_inline) {
+        FunctionInliner inliner(program);
+        inliner.run();
+        std::cerr << "Functions inlined: " << inliner.get_functions_inlined() << "\n";
+    }
 
     if (do_optimize) {
         PeepholeOptimizer opt(program);
@@ -436,6 +446,7 @@ int main(int argc, char** argv) {
     bool show_types = false;
     bool show_stats = false;
     bool do_optimize = false;
+    bool do_inline = false;
     std::string regalloc_str = "stack";
     bool x86_peephole = false;
 
@@ -455,6 +466,8 @@ int main(int argc, char** argv) {
             show_stats = true;
         } else if (arg == "--optimize") {
             do_optimize = true;
+        } else if (arg == "--inline") {
+            do_inline = true;
         } else if (arg == "--regalloc" && i + 1 < argc) {
             regalloc_str = argv[++i];
         } else if (arg == "--x86-peephole") {
@@ -480,14 +493,14 @@ int main(int argc, char** argv) {
         return cmd_symbols(input_path, output_path, format);
     }
     if (command == "ir") {
-        return cmd_ir(input_path, output_path, format, show_stats, do_optimize);
+        return cmd_ir(input_path, output_path, format, show_stats, do_optimize, do_inline);
     }
     if (command == "compile") {
         RegAllocStrategy strategy = RegAllocStrategy::StackOnly;
         if (regalloc_str == "lsra") {
             strategy = RegAllocStrategy::LinearScan;
         }
-        return cmd_compile(input_path, output_path, do_optimize, strategy, x86_peephole);
+        return cmd_compile(input_path, output_path, do_optimize, do_inline, strategy, x86_peephole);
     }
 
     print_usage();

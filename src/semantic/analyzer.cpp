@@ -90,8 +90,19 @@ void SemanticAnalyzer::collect_declarations(ProgramNode& ast) {
 
             // Build param list
             std::vector<FunctionParam> params;
-            for (const auto& p : fn->parameters)
-                params.push_back(FunctionParam{p.name, p.type_name});
+            for (const auto& p : fn->parameters) {
+                std::string param_type_name = p.type_name;
+                if (p.name == "..." && param_type_name == "...") {
+                    // Variadic argument
+                } else if (p.is_array) {
+                    Type* pt = types_.resolve(p.type_name);
+                    if (pt) {
+                        pt = types_.register_array(pt, {0});
+                        param_type_name = pt->name;
+                    }
+                }
+                params.push_back(FunctionParam{p.name, param_type_name});
+            }
 
             // Register function type
             Type* fn_type = types_.register_function(
@@ -177,7 +188,11 @@ void SemanticAnalyzer::visit(FunctionDeclNode& node) {
 
     // Insert parameters
     for (const auto& p : node.parameters) {
+        if (p.name == "...") continue;
         Type* pt = resolve_type_name(p.type_name, p.line, p.column);
+        if (p.is_array) {
+            pt = types_.register_array(pt, {0});
+        }
         if (pt->is_void()) {
             error(SemanticErrorKind::TypeMismatch, p.line, p.column,
                   "параметр '" + p.name + "' не может иметь тип void",
@@ -252,6 +267,9 @@ void SemanticAnalyzer::visit(StructDeclNode& node) {
 // ---------------------------------------------------------------
 void SemanticAnalyzer::visit(VarDeclStmtNode& node) {
     Type* var_type = resolve_type_name(node.type_name, node.line, node.column);
+    if (node.is_array) {
+        var_type = types_.register_array(var_type, node.array_sizes);
+    }
 
     if (var_type->is_void()) {
         error(SemanticErrorKind::TypeMismatch, node.line, node.column,
@@ -260,9 +278,15 @@ void SemanticAnalyzer::visit(VarDeclStmtNode& node) {
     }
 
     // Check initializer
-    if (node.initializer) {
-        node.initializer->accept(*this);
-        Type* init_type = last_expr_type_;
+    if (node.initializer || node.array_init) {
+        Type* init_type = nullptr;
+        if (node.initializer) {
+            node.initializer->accept(*this);
+            init_type = last_expr_type_;
+        } else if (node.array_init) {
+            node.array_init->accept(*this);
+            init_type = last_expr_type_;
+        }
 
         if (init_type && !init_type->is_error() && !var_type->is_error()) {
             if (!types_.is_compatible(init_type, var_type)) {
@@ -283,7 +307,7 @@ void SemanticAnalyzer::visit(VarDeclStmtNode& node) {
     sym.kind = SymbolKind::Variable;
     sym.decl_line = node.line;
     sym.decl_column = node.column;
-    sym.initialized = (node.initializer != nullptr);
+    sym.initialized = (node.initializer != nullptr) || (node.array_init != nullptr);
 
     if (!sym_.insert(sym)) {
         error(SemanticErrorKind::DuplicateDeclaration,
@@ -676,6 +700,56 @@ void SemanticAnalyzer::visit(PostfixExprNode& node) {
 }
 
 // ---------------------------------------------------------------
+// ArrayAccessExprNode
+// ---------------------------------------------------------------
+void SemanticAnalyzer::visit(ArrayAccessExprNode& node) {
+    node.base->accept(*this);
+    Type* base_type = last_expr_type_;
+    if (!base_type || base_type->is_error()) {
+        last_expr_type_ = types_.type_error();
+        node.resolved_type = "<error>";
+        return;
+    }
+    if (!base_type->is_array()) {
+        error(SemanticErrorKind::TypeMismatch, node.line, node.column,
+              "попытка доступа по индексу к не-массиву", "array", base_type->name);
+        last_expr_type_ = types_.type_error();
+        node.resolved_type = "<error>";
+        return;
+    }
+    node.index->accept(*this);
+    Type* index_type = last_expr_type_;
+    if (!index_type->is_numeric() || index_type->kind == TypeKind::Float) {
+        error(SemanticErrorKind::TypeMismatch, node.index->line, node.index->column,
+              "индекс массива должен быть целым числом", "int", index_type->name);
+    }
+    last_expr_type_ = base_type->array_element_type;
+    node.resolved_type = last_expr_type_->name;
+}
+
+// ---------------------------------------------------------------
+// ArrayInitExprNode
+// ---------------------------------------------------------------
+void SemanticAnalyzer::visit(ArrayInitExprNode& node) {
+    if (node.elements.empty()) {
+        last_expr_type_ = types_.type_error(); 
+        node.resolved_type = "<error>";
+        return;
+    }
+    node.elements[0]->accept(*this);
+    Type* elem_type = last_expr_type_;
+    for (size_t i = 1; i < node.elements.size(); ++i) {
+        node.elements[i]->accept(*this);
+        if (!types_.is_compatible(last_expr_type_, elem_type)) {
+            error(SemanticErrorKind::TypeMismatch, node.elements[i]->line, node.elements[i]->column,
+                  "элементы массива должны иметь один тип", elem_type->name, last_expr_type_->name);
+        }
+    }
+    last_expr_type_ = types_.register_array(elem_type, {static_cast<int>(node.elements.size())});
+    node.resolved_type = last_expr_type_->name;
+}
+
+// ---------------------------------------------------------------
 // CallExprNode
 // ---------------------------------------------------------------
 void SemanticAnalyzer::visit(CallExprNode& node) {
@@ -887,8 +961,50 @@ public:
             expr_inline_ = false;
             if (!node.initializer->resolved_type.empty())
                 out_ << " [type: " << node.initializer->resolved_type << "]";
+        } else if (node.array_init) {
+            out_ << " = ";
+            expr_inline_ = true;
+            node.array_init->accept(*this);
+            expr_inline_ = false;
         }
         out_ << " (line " << node.line << ")\n";
+    }
+
+    void visit(ArrayAccessExprNode& node) override {
+        if (expr_inline_) {
+            node.base->accept(*this);
+            out_ << "[";
+            node.index->accept(*this);
+            out_ << "]";
+            return;
+        }
+        ind();
+        out_ << "ArrayAccess:\n";
+        indent_++;
+        ind(); out_ << "Base:\n";
+        indent_++; node.base->accept(*this); indent_--;
+        ind(); out_ << "Index:\n";
+        indent_++; node.index->accept(*this); indent_--;
+        indent_--;
+    }
+
+    void visit(ArrayInitExprNode& node) override {
+        if (expr_inline_) {
+            out_ << "{";
+            for (size_t i = 0; i < node.elements.size(); ++i) {
+                if (i > 0) out_ << ", ";
+                node.elements[i]->accept(*this);
+            }
+            out_ << "}";
+            return;
+        }
+        ind();
+        out_ << "ArrayInit:\n";
+        indent_++;
+        for (auto& e : node.elements) {
+            e->accept(*this);
+        }
+        indent_--;
     }
 
     void visit(BlockStmtNode& node) override {
