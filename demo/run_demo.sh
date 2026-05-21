@@ -8,4 +8,8 @@ echo "=== Линковка ==="
 gcc -no-pie -o demo/showcase demo/showcase.o
 echo "=== Запуск ==="
 ./demo/showcase
+echo ""
+echo "=== Демонстрация системы ошибок ==="
+echo "Запуск семантического анализатора на файле с ошибками..."
+./compiler check --input demo/errors_showcase.src || true
 echo "=== Готово ==="
