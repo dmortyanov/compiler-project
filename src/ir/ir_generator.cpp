@@ -54,6 +54,13 @@ public:
     void visit(StructDeclNode&) override {}
     void visit(LiteralExprNode&) override {}
     void visit(IdentifierExprNode&) override {}
+    void visit(ArrayAccessExprNode& node) override {
+        if (node.base) node.base->accept(*this);
+        if (node.index) node.index->accept(*this);
+    }
+    void visit(ArrayInitExprNode& node) override {
+        for (auto& e : node.elements) e->accept(*this);
+    }
 };
 
 static bool operands_equal(const Operand& a, const Operand& b) {

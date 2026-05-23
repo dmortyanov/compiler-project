@@ -151,6 +151,15 @@ struct Builder : ASTVisitor {
         if (node.target) node.target->accept(*this);
         if (node.value) node.value->accept(*this);
     }
+
+    void visit(ArrayAccessExprNode& node) override {
+        if (node.base) node.base->accept(*this);
+        if (node.index) node.index->accept(*this);
+    }
+
+    void visit(ArrayInitExprNode& node) override {
+        for (auto& e : node.elements) e->accept(*this);
+    }
 };
 
 } // namespace
