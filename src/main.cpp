@@ -320,6 +320,12 @@ static int cmd_ir(const std::string& input_path,
     IRGenerator gen(analyzer.get_symbol_table(), analyzer.get_type_registry());
     IRProgram program = gen.generate(*ast);
 
+    if (do_inline) {
+        FunctionInliner inliner(program);
+        inliner.run();
+        std::cerr << "Functions inlined: " << inliner.get_functions_inlined() << "\n";
+    }
+
     if (do_optimize) {
         PeepholeOptimizer opt(program);
         opt.optimize();

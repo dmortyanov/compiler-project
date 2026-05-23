@@ -1,6 +1,7 @@
 #include "ir/optimizer.h"
 
 #include <algorithm>
+#include <map>
 #include <set>
 #include <sstream>
 
