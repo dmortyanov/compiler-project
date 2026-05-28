@@ -58,7 +58,7 @@ for src_file in "$DIFF_DIR"/*.src; do
     fi
 
     our_bin="$TMPDIR/${name}_ours"
-    if ! ld -o "$our_bin" "$TMPDIR/runtime.o" "$obj_file" 2>/dev/null; then
+    if ! gcc -no-pie -nostartfiles -o "$our_bin" "$TMPDIR/runtime.o" "$obj_file" 2>/dev/null; then
         echo "  FAIL: $name — linker error"
         FAIL=$((FAIL + 1))
         continue

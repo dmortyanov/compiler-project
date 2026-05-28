@@ -396,8 +396,10 @@ void X86Generator::gen_instruction(const IRInstruction& instr) {
             break;
 
         case IROpcode::ALLOCA: {
-            int buf_offset = frame_.get_slot_offset(instr.dest.name + "_buf");
-            emit("    lea rax, [rbp" + std::to_string(buf_offset) + "]");
+            int size = instr.srcs[0].int_val;
+            extern_symbols_.insert("malloc");
+            emit("    mov rdi, " + std::to_string(size));
+            emit("    call malloc");
             store_to_dest(instr.dest, "eax");
             break;
         }

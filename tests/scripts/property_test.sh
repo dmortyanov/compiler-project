@@ -50,7 +50,7 @@ compile_and_run() {
         return
     fi
 
-    if ! ld -o "$bin_file" "$TMPDIR/runtime.o" "$obj_file" 2>/dev/null; then
+    if ! gcc -no-pie -nostartfiles -o "$bin_file" "$TMPDIR/runtime.o" "$obj_file" 2>/dev/null; then
         RESULT_EXIT=-3
         return
     fi

@@ -1,1052 +1,407 @@
-extern printf
+function printf: int (string format, ... ...)
+function factorial: int (int n)
+  entry:
+    t0 = MOVE [n]
+    t1 = CMP_LE t0, 1
+    JUMP_IF t1, L_then_0
+    JUMP L_endif_1
 
-; ============================================================
-; MiniCompiler — x86-64 NASM output
-; Target: Linux x86-64, System V AMD64 ABI
-; ============================================================
+  L_then_0:
+    RETURN 1
 
-section .text
+  L_endif_1:
+    t2 = SUB t0, 1
+    PARAM 0, t2
+    t3 = CALL factorial, 1
+    t4 = MUL t0, t3
+    RETURN t4
 
-global factorial
-global swap
-global partition
-global quicksort
-global print_array
-global compute_optimized
-global fibonacci
-global is_prime
-global main
+function swap: void (int arr, int i, int j)
+  entry:
+    t0 = MOVE [arr]
+    t1 = MOVE [i]
+    t2 = MOVE [j]
+    t3 = LOAD_ELEM t0[t1]
+    t4 = MOVE t3    # int temp
+    t5 = LOAD_ELEM t0[t2]
+    STORE_ELEM t0[t1], t5
+    STORE_ELEM t0[t2], t4
+    RETURN
 
-; ---- function factorial ----
-factorial:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 48
-    mov qword [rbp-8], rdi    ; param n
-.entry:
-    mov rax, qword [rbp-8]
-    mov qword [rbp-16], rax
-    ; line 24
-    mov rax, qword [rbp-16]
-    mov ecx, 1
-    cmp eax, ecx
-    setle al
-    movzx eax, al
-    mov qword [rbp-24], rax
-    mov rax, qword [rbp-24]
-    test eax, eax
-    jnz .L_then_0
-    jmp .L_endif_1
-.L_then_0:
-    mov eax, 1
-    leave
-    ret
-.L_endif_1:
-    ; line 25
-    mov rax, qword [rbp-16]
-    mov ecx, 1
-    sub eax, ecx
-    mov qword [rbp-32], rax
-    ; line 25
-    ; line 25
-    mov rdi, qword [rbp-32]
-    xor eax, eax
-    call factorial
-    mov qword [rbp-40], rax
-    ; line 25
-    mov rax, qword [rbp-16]
-    mov rcx, qword [rbp-40]
-    imul eax, ecx
-    mov qword [rbp-48], rax
-    mov rax, qword [rbp-48]
-    leave
-    ret
+function partition: int (int arr, int low, int high)
+  entry:
+    t0 = MOVE [arr]
+    t1 = MOVE [low]
+    t2 = MOVE [high]
+    t3 = LOAD_ELEM t0[t2]
+    t4 = MOVE t3    # int pivot
+    t5 = SUB t1, 1
+    t6 = MOVE t5    # int i
+    t7 = MOVE t1    # int j
+    JUMP L_for_0
 
-; ---- function swap ----
-swap:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 80
-    mov qword [rbp-8], rdi    ; param arr
-    mov qword [rbp-16], rsi    ; param i
-    mov qword [rbp-24], rdx    ; param j
-.entry:
-    mov rax, qword [rbp-8]
-    mov qword [rbp-32], rax
-    mov rax, qword [rbp-16]
-    mov qword [rbp-40], rax
-    mov rax, qword [rbp-24]
-    mov qword [rbp-48], rax
-    ; line 30
-    mov r8, qword [rbp-32]
-    mov rcx, qword [rbp-40]
-    movsxd rcx, ecx
-    mov eax, dword [r8 + rcx * 4]
-    mov qword [rbp-56], rax
-    ; line 30: int temp
-    mov rax, qword [rbp-56]
-    mov qword [rbp-64], rax
-    ; line 31
-    mov r8, qword [rbp-32]
-    mov rcx, qword [rbp-48]
-    movsxd rcx, ecx
-    mov eax, dword [r8 + rcx * 4]
-    mov qword [rbp-72], rax
-    ; line 31
-    mov r8, qword [rbp-32]
-    mov rcx, qword [rbp-40]
-    movsxd rcx, ecx
-    mov rax, qword [rbp-72]
-    mov dword [r8 + rcx * 4], eax
-    ; line 32
-    mov r8, qword [rbp-32]
-    mov rcx, qword [rbp-48]
-    movsxd rcx, ecx
-    mov rax, qword [rbp-64]
-    mov dword [r8 + rcx * 4], eax
-    leave
-    ret
+  L_for_0:
+    t8 = PHI (t6, entry), (t16, L_forupd_2)
+    t9 = PHI (t7, entry), (t18, L_forupd_2)
+    t10 = CMP_LT t9, t2
+    JUMP_IF t10, L_forbody_1
+    JUMP L_endfor_3
 
-; ---- function partition ----
-partition:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 208
-    mov qword [rbp-8], rdi    ; param arr
-    mov qword [rbp-16], rsi    ; param low
-    mov qword [rbp-24], rdx    ; param high
-.entry:
-    mov rax, qword [rbp-8]
-    mov qword [rbp-32], rax
-    mov rax, qword [rbp-16]
-    mov qword [rbp-40], rax
-    mov rax, qword [rbp-24]
-    mov qword [rbp-48], rax
-    ; line 36
-    mov r8, qword [rbp-32]
-    mov rcx, qword [rbp-48]
-    movsxd rcx, ecx
-    mov eax, dword [r8 + rcx * 4]
-    mov qword [rbp-56], rax
-    ; line 36: int pivot
-    mov rax, qword [rbp-56]
-    mov qword [rbp-64], rax
-    ; line 37
-    mov rax, qword [rbp-40]
-    mov ecx, 1
-    sub eax, ecx
-    mov qword [rbp-72], rax
-    ; line 37: int i
-    mov rax, qword [rbp-72]
-    mov qword [rbp-80], rax
-    ; line 38: int j
-    mov rax, qword [rbp-40]
-    mov qword [rbp-88], rax
-    ; PHI resolution: entry -> L_for_0
-    mov rax, qword [rbp-80]
-    mov dword [rbp-96], eax
-    mov rax, qword [rbp-88]
-    mov dword [rbp-112], eax
-    jmp .L_for_0
-.L_for_0:
-    ; line 38
-    mov rax, qword [rbp-112]
-    mov rcx, qword [rbp-48]
-    cmp eax, ecx
-    setl al
-    movzx eax, al
-    mov qword [rbp-128], rax
-    mov rax, qword [rbp-128]
-    test eax, eax
-    jnz .L_forbody_1
-    jmp .L_endfor_3
-.L_forbody_1:
-    ; line 39
-    mov r8, qword [rbp-32]
-    mov rcx, qword [rbp-112]
-    movsxd rcx, ecx
-    mov eax, dword [r8 + rcx * 4]
-    mov qword [rbp-136], rax
-    ; line 39
-    mov rax, qword [rbp-136]
-    mov rcx, qword [rbp-64]
-    cmp eax, ecx
-    setle al
-    movzx eax, al
-    mov qword [rbp-144], rax
-    mov rax, qword [rbp-144]
-    test eax, eax
-    jnz .L_then_4
-    ; PHI resolution: L_forbody_1 -> L_endif_5
-    mov rax, qword [rbp-96]
-    mov dword [rbp-104], eax
-    jmp .L_endif_5
-.L_then_4:
-    ; line 40
-    mov rax, qword [rbp-96]
-    mov ecx, 1
-    add eax, ecx
-    mov qword [rbp-152], rax
-    ; line 40
-    mov rax, qword [rbp-152]
-    mov qword [rbp-160], rax
-    ; line 41
-    ; line 41
-    ; line 41
-    ; line 41
-    mov rdi, qword [rbp-32]
-    mov rsi, qword [rbp-160]
-    mov rdx, qword [rbp-112]
-    xor eax, eax
-    call swap
-    mov qword [rbp-168], rax
-    ; PHI resolution: L_then_4 -> L_endif_5
-    mov rax, qword [rbp-160]
-    mov dword [rbp-104], eax
-    jmp .L_endif_5
-.L_endif_5:
-    jmp .L_forupd_2
-.L_forupd_2:
-    ; line 38
-    mov rax, qword [rbp-112]
-    mov ecx, 1
-    add eax, ecx
-    mov qword [rbp-176], rax
-    ; line 38
-    mov rax, qword [rbp-176]
-    mov qword [rbp-120], rax
-    ; PHI resolution: L_forupd_2 -> L_for_0
-    mov rax, qword [rbp-104]
-    mov dword [rbp-96], eax
-    mov rax, qword [rbp-120]
-    mov dword [rbp-112], eax
-    jmp .L_for_0
-.L_endfor_3:
-    ; line 44
-    mov rax, qword [rbp-104]
-    mov ecx, 1
-    add eax, ecx
-    mov qword [rbp-184], rax
-    ; line 44
-    ; line 44
-    ; line 44
-    ; line 44
-    mov rdi, qword [rbp-32]
-    mov rsi, qword [rbp-184]
-    mov rdx, qword [rbp-48]
-    xor eax, eax
-    call swap
-    mov qword [rbp-192], rax
-    ; line 45
-    mov rax, qword [rbp-104]
-    mov ecx, 1
-    add eax, ecx
-    mov qword [rbp-200], rax
-    mov rax, qword [rbp-200]
-    leave
-    ret
+  L_forbody_1:
+    t11 = LOAD_ELEM t0[t9]
+    t12 = CMP_LE t11, t4
+    JUMP_IF t12, L_then_4
+    JUMP L_endif_5
 
-; ---- function quicksort ----
-quicksort:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 112
-    mov qword [rbp-8], rdi    ; param arr
-    mov qword [rbp-16], rsi    ; param low
-    mov qword [rbp-24], rdx    ; param high
-.entry:
-    mov rax, qword [rbp-8]
-    mov qword [rbp-32], rax
-    mov rax, qword [rbp-16]
-    mov qword [rbp-40], rax
-    mov rax, qword [rbp-24]
-    mov qword [rbp-48], rax
-    ; line 49
-    mov rax, qword [rbp-40]
-    mov rcx, qword [rbp-48]
-    cmp eax, ecx
-    setl al
-    movzx eax, al
-    mov qword [rbp-56], rax
-    mov rax, qword [rbp-56]
-    test eax, eax
-    jnz .L_then_0
-    jmp .L_endif_1
-.L_then_0:
-    ; line 50
-    ; line 50
-    ; line 50
-    ; line 50
-    mov rdi, qword [rbp-32]
-    mov rsi, qword [rbp-40]
-    mov rdx, qword [rbp-48]
-    xor eax, eax
-    call partition
-    mov qword [rbp-64], rax
-    ; line 50: int pi
-    mov rax, qword [rbp-64]
-    mov qword [rbp-72], rax
-    ; line 51
-    mov rax, qword [rbp-72]
-    mov ecx, 1
-    sub eax, ecx
-    mov qword [rbp-80], rax
-    ; line 51
-    ; line 51
-    ; line 51
-    ; line 51
-    mov rdi, qword [rbp-32]
-    mov rsi, qword [rbp-40]
-    mov rdx, qword [rbp-80]
-    xor eax, eax
-    call quicksort
-    mov qword [rbp-88], rax
-    ; line 52
-    mov rax, qword [rbp-72]
-    mov ecx, 1
-    add eax, ecx
-    mov qword [rbp-96], rax
-    ; line 52
-    ; line 52
-    ; line 52
-    ; line 52
-    mov rdi, qword [rbp-32]
-    mov rsi, qword [rbp-96]
-    mov rdx, qword [rbp-48]
-    xor eax, eax
-    call quicksort
-    mov qword [rbp-104], rax
-    jmp .L_endif_1
-.L_endif_1:
-    leave
-    ret
+  L_then_4:
+    t13 = ADD t8, 1
+    t14 = MOVE t13
+    PARAM 0, t0
+    PARAM 1, t14
+    PARAM 2, t9
+    t15 = CALL swap, 3
+    JUMP L_endif_5
 
-; ---- function print_array ----
-print_array:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 96
-    mov qword [rbp-8], rdi    ; param arr
-    mov qword [rbp-16], rsi    ; param size
-.entry:
-    mov rax, qword [rbp-8]
-    mov qword [rbp-24], rax
-    mov rax, qword [rbp-16]
-    mov qword [rbp-32], rax
-    ; line 57: int i
-    xor eax, eax
-    mov qword [rbp-40], rax
-    ; PHI resolution: entry -> L_for_0
-    mov rax, qword [rbp-40]
-    mov dword [rbp-48], eax
-    jmp .L_for_0
-.L_for_0:
-    ; line 57
-    mov rax, qword [rbp-48]
-    mov rcx, qword [rbp-32]
-    cmp eax, ecx
-    setl al
-    movzx eax, al
-    mov qword [rbp-64], rax
-    mov rax, qword [rbp-64]
-    test eax, eax
-    jnz .L_forbody_1
-    jmp .L_endfor_3
-.L_forbody_1:
-    ; line 58
-    mov r8, qword [rbp-24]
-    mov rcx, qword [rbp-48]
-    movsxd rcx, ecx
-    mov eax, dword [r8 + rcx * 4]
-    mov qword [rbp-72], rax
-    ; line 58
-    ; line 58
-    ; line 58
-    lea rdi, [rel Lstr_0]
-    mov rsi, qword [rbp-72]
-    xor eax, eax
-    call printf
-    mov qword [rbp-80], rax
-    jmp .L_forupd_2
-.L_forupd_2:
-    ; line 57
-    mov rax, qword [rbp-48]
-    mov ecx, 1
-    add eax, ecx
-    mov qword [rbp-88], rax
-    ; line 57
-    mov rax, qword [rbp-88]
-    mov qword [rbp-56], rax
-    ; PHI resolution: L_forupd_2 -> L_for_0
-    mov rax, qword [rbp-56]
-    mov dword [rbp-48], eax
-    jmp .L_for_0
-.L_endfor_3:
-    ; line 60
-    ; line 60
-    lea rdi, [rel Lstr_1]
-    xor eax, eax
-    call printf
-    mov qword [rbp-96], rax
-    leave
-    ret
+  L_endif_5:
+    t16 = PHI (t14, L_then_4), (t8, L_forbody_1)
+    JUMP L_forupd_2
 
-; ---- function compute_optimized ----
-compute_optimized:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 64
-.entry:
-    ; line 65
-    mov eax, 10
-    mov ecx, 20
-    add eax, ecx
-    mov qword [rbp-8], rax
-    ; line 65: int x
-    mov rax, qword [rbp-8]
-    mov qword [rbp-16], rax
-    ; line 66
-    mov rax, qword [rbp-16]
-    mov ecx, 2
-    imul eax, ecx
-    mov qword [rbp-24], rax
-    ; line 66: int y
-    mov rax, qword [rbp-24]
-    mov qword [rbp-32], rax
-    ; line 67
-    mov rax, qword [rbp-32]
-    xor ecx, ecx
-    add eax, ecx
-    mov qword [rbp-40], rax
-    ; line 67: int z
-    mov rax, qword [rbp-40]
-    mov qword [rbp-48], rax
-    ; line 68
-    mov rax, qword [rbp-32]
-    mov ecx, 50
-    cmp eax, ecx
-    setg al
-    movzx eax, al
-    mov qword [rbp-56], rax
-    mov rax, qword [rbp-56]
-    test eax, eax
-    jnz .L_then_0
-    jmp .L_else_1
-.L_then_0:
-    mov rax, qword [rbp-32]
-    leave
-    ret
-.L_else_1:
-    xor eax, eax
-    leave
-    ret
-.L_endif_2:
-    xor eax, eax
-    leave
-    ret
+  L_forupd_2:
+    t17 = ADD t9, 1
+    t18 = MOVE t17
+    JUMP L_for_0
 
-; ---- function fibonacci ----
-fibonacci:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 144
-    mov qword [rbp-8], rdi    ; param n
-.entry:
-    mov rax, qword [rbp-8]
-    mov qword [rbp-16], rax
-    ; line 77
-    mov rax, qword [rbp-16]
-    xor ecx, ecx
-    cmp eax, ecx
-    setle al
-    movzx eax, al
-    mov qword [rbp-24], rax
-    mov rax, qword [rbp-24]
-    test eax, eax
-    jnz .L_then_0
-    jmp .L_endif_1
-.L_then_0:
-    xor eax, eax
-    leave
-    ret
-.L_endif_1:
-    ; line 78
-    mov rax, qword [rbp-16]
-    mov ecx, 1
-    cmp eax, ecx
-    sete al
-    movzx eax, al
-    mov qword [rbp-32], rax
-    mov rax, qword [rbp-32]
-    test eax, eax
-    jnz .L_then_2
-    jmp .L_endif_3
-.L_then_2:
-    mov eax, 1
-    leave
-    ret
-.L_endif_3:
-    ; line 79: int a
-    xor eax, eax
-    mov qword [rbp-40], rax
-    ; line 80: int b
-    mov eax, 1
-    mov qword [rbp-48], rax
-    ; line 81: int i
-    mov eax, 2
-    mov qword [rbp-56], rax
-    ; PHI resolution: L_endif_3 -> L_for_4
-    mov rax, qword [rbp-40]
-    mov dword [rbp-64], eax
-    mov rax, qword [rbp-48]
-    mov dword [rbp-80], eax
-    mov rax, qword [rbp-56]
-    mov dword [rbp-96], eax
-    jmp .L_for_4
-.L_for_4:
-    ; line 81
-    mov rax, qword [rbp-96]
-    mov rcx, qword [rbp-16]
-    cmp eax, ecx
-    setle al
-    movzx eax, al
-    mov qword [rbp-112], rax
-    mov rax, qword [rbp-112]
-    test eax, eax
-    jnz .L_forbody_5
-    jmp .L_endfor_7
-.L_forbody_5:
-    ; line 82
-    mov rax, qword [rbp-64]
-    mov rcx, qword [rbp-80]
-    add eax, ecx
-    mov qword [rbp-120], rax
-    ; line 82: int temp
-    mov rax, qword [rbp-120]
-    mov qword [rbp-128], rax
-    ; line 83
-    mov rax, qword [rbp-80]
-    mov qword [rbp-72], rax
-    ; line 84
-    mov rax, qword [rbp-128]
-    mov qword [rbp-88], rax
-    jmp .L_forupd_6
-.L_forupd_6:
-    ; line 81
-    mov rax, qword [rbp-96]
-    mov ecx, 1
-    add eax, ecx
-    mov qword [rbp-136], rax
-    ; line 81
-    mov rax, qword [rbp-136]
-    mov qword [rbp-104], rax
-    ; PHI resolution: L_forupd_6 -> L_for_4
-    mov rax, qword [rbp-72]
-    mov dword [rbp-64], eax
-    mov rax, qword [rbp-88]
-    mov dword [rbp-80], eax
-    mov rax, qword [rbp-104]
-    mov dword [rbp-96], eax
-    jmp .L_for_4
-.L_endfor_7:
-    mov rax, qword [rbp-88]
-    leave
-    ret
+  L_endfor_3:
+    t19 = ADD t16, 1
+    PARAM 0, t0
+    PARAM 1, t19
+    PARAM 2, t2
+    t20 = CALL swap, 3
+    t21 = ADD t16, 1
+    RETURN t21
 
-; ---- function is_prime ----
-is_prime:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 96
-    mov qword [rbp-8], rdi    ; param n
-.entry:
-    mov rax, qword [rbp-8]
-    mov qword [rbp-16], rax
-    ; line 91
-    mov rax, qword [rbp-16]
-    mov ecx, 2
-    cmp eax, ecx
-    setl al
-    movzx eax, al
-    mov qword [rbp-24], rax
-    mov rax, qword [rbp-24]
-    test eax, eax
-    jnz .L_then_0
-    jmp .L_endif_1
-.L_then_0:
-    xor eax, eax
-    leave
-    ret
-.L_endif_1:
-    ; line 92: int i
-    mov eax, 2
-    mov qword [rbp-32], rax
-    ; PHI resolution: L_endif_1 -> L_for_2
-    mov rax, qword [rbp-32]
-    mov dword [rbp-40], eax
-    jmp .L_for_2
-.L_for_2:
-    ; line 92
-    mov rax, qword [rbp-40]
-    mov rcx, qword [rbp-40]
-    imul eax, ecx
-    mov qword [rbp-56], rax
-    ; line 92
-    mov rax, qword [rbp-56]
-    mov rcx, qword [rbp-16]
-    cmp eax, ecx
-    setle al
-    movzx eax, al
-    mov qword [rbp-64], rax
-    mov rax, qword [rbp-64]
-    test eax, eax
-    jnz .L_forbody_3
-    jmp .L_endfor_5
-.L_forbody_3:
-    ; line 93
-    mov rax, qword [rbp-16]
-    cdq
-    mov rcx, qword [rbp-40]
-    idiv ecx
-    mov eax, edx
-    mov qword [rbp-72], rax
-    ; line 93
-    mov rax, qword [rbp-72]
-    xor ecx, ecx
-    cmp eax, ecx
-    sete al
-    movzx eax, al
-    mov qword [rbp-80], rax
-    mov rax, qword [rbp-80]
-    test eax, eax
-    jnz .L_then_6
-    jmp .L_endif_7
-.L_then_6:
-    xor eax, eax
-    leave
-    ret
-.L_endif_7:
-    jmp .L_forupd_4
-.L_forupd_4:
-    ; line 92
-    mov rax, qword [rbp-40]
-    mov ecx, 1
-    add eax, ecx
-    mov qword [rbp-88], rax
-    ; line 92
-    mov rax, qword [rbp-88]
-    mov qword [rbp-48], rax
-    ; PHI resolution: L_forupd_4 -> L_for_2
-    mov rax, qword [rbp-48]
-    mov dword [rbp-40], eax
-    jmp .L_for_2
-.L_endfor_5:
-    mov eax, 1
-    leave
-    ret
+function quicksort: void (int arr, int low, int high)
+  entry:
+    t0 = MOVE [arr]
+    t1 = MOVE [low]
+    t2 = MOVE [high]
+    t3 = CMP_LT t1, t2
+    JUMP_IF t3, L_then_0
+    JUMP L_endif_1
 
-; ---- function main ----
-main:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 416
-.entry:
-    ; line 100
-    ; line 100
-    lea rdi, [rel Lstr_2]
-    xor eax, eax
-    call printf
-    mov qword [rbp-8], rax
-    ; line 103: int x
-    mov eax, 42
-    mov qword [rbp-16], rax
-    ; line 104: bool flag
-    mov eax, 1
-    mov qword [rbp-24], rax
-    ; line 105
-    ; line 105
-    ; line 105
-    ; line 105
-    lea rdi, [rel Lstr_3]
-    mov rsi, qword [rbp-16]
-    mov rdx, qword [rbp-24]
-    xor eax, eax
-    call printf
-    mov qword [rbp-32], rax
-    ; line 108
-    ; line 108
-    mov edi, 5
-    xor eax, eax
-    call factorial
-    mov qword [rbp-40], rax
-    ; line 108
-    ; line 108
-    ; line 108
-    lea rdi, [rel Lstr_4]
-    mov rsi, qword [rbp-40]
-    xor eax, eax
-    call printf
-    mov qword [rbp-48], rax
-    ; line 111
-    ; line 111
-    mov edi, 10
-    xor eax, eax
-    call fibonacci
-    mov qword [rbp-56], rax
-    ; line 111
-    ; line 111
-    ; line 111
-    lea rdi, [rel Lstr_5]
-    mov rsi, qword [rbp-56]
-    xor eax, eax
-    call printf
-    mov qword [rbp-64], rax
-    ; line 114
-    lea rax, [rbp-96]
-    mov qword [rbp-104], rax
-    ; line 114
-    mov r8, qword [rbp-104]
-    xor ecx, ecx
-    movsxd rcx, ecx
-    mov eax, 10
-    mov dword [r8 + rcx * 4], eax
-    ; line 114
-    mov r8, qword [rbp-104]
-    mov ecx, 1
-    movsxd rcx, ecx
-    mov eax, 7
-    mov dword [r8 + rcx * 4], eax
-    ; line 114
-    mov r8, qword [rbp-104]
-    mov ecx, 2
-    movsxd rcx, ecx
-    mov eax, 8
-    mov dword [r8 + rcx * 4], eax
-    ; line 114
-    mov r8, qword [rbp-104]
-    mov ecx, 3
-    movsxd rcx, ecx
-    mov eax, 9
-    mov dword [r8 + rcx * 4], eax
-    ; line 114
-    mov r8, qword [rbp-104]
-    mov ecx, 4
-    movsxd rcx, ecx
-    mov eax, 1
-    mov dword [r8 + rcx * 4], eax
-    ; line 114
-    mov r8, qword [rbp-104]
-    mov ecx, 5
-    movsxd rcx, ecx
-    mov eax, 5
-    mov dword [r8 + rcx * 4], eax
-    ; line 114
-    mov r8, qword [rbp-104]
-    mov ecx, 6
-    movsxd rcx, ecx
-    mov eax, 3
-    mov dword [r8 + rcx * 4], eax
-    ; line 114
-    mov r8, qword [rbp-104]
-    mov ecx, 7
-    movsxd rcx, ecx
-    mov eax, 6
-    mov dword [r8 + rcx * 4], eax
-    ; line 114: int arr
-    mov rax, qword [rbp-104]
-    mov qword [rbp-112], rax
-    ; line 115
-    ; line 115
-    lea rdi, [rel Lstr_6]
-    xor eax, eax
-    call printf
-    mov qword [rbp-120], rax
-    ; line 116
-    ; line 116
-    ; line 116
-    mov rdi, qword [rbp-112]
-    mov esi, 8
-    xor eax, eax
-    call print_array
-    mov qword [rbp-128], rax
-    ; line 117
-    ; line 117
-    ; line 117
-    ; line 117
-    mov rdi, qword [rbp-112]
-    xor esi, esi
-    mov edx, 7
-    xor eax, eax
-    call quicksort
-    mov qword [rbp-136], rax
-    ; line 118
-    ; line 118
-    lea rdi, [rel Lstr_7]
-    xor eax, eax
-    call printf
-    mov qword [rbp-144], rax
-    ; line 119
-    ; line 119
-    ; line 119
-    mov rdi, qword [rbp-112]
-    mov esi, 8
-    xor eax, eax
-    call print_array
-    mov qword [rbp-152], rax
-    ; line 122
-    xor eax, eax
-    call compute_optimized
-    mov qword [rbp-160], rax
-    ; line 122: int opt
-    mov rax, qword [rbp-160]
-    mov qword [rbp-168], rax
-    ; line 123
-    ; line 123
-    ; line 123
-    lea rdi, [rel Lstr_8]
-    mov rsi, qword [rbp-168]
-    xor eax, eax
-    call printf
-    mov qword [rbp-176], rax
-    ; line 126
-    ; line 126
-    lea rdi, [rel Lstr_9]
-    xor eax, eax
-    call printf
-    mov qword [rbp-184], rax
-    ; line 127: int i
-    mov eax, 2
-    mov qword [rbp-192], rax
-    ; PHI resolution: entry -> L_for_0
-    mov rax, qword [rbp-192]
-    mov dword [rbp-200], eax
-    jmp .L_for_0
-.L_for_0:
-    ; line 127
-    mov rax, qword [rbp-200]
-    mov ecx, 20
-    cmp eax, ecx
-    setle al
-    movzx eax, al
-    mov qword [rbp-216], rax
-    mov rax, qword [rbp-216]
-    test eax, eax
-    jnz .L_forbody_1
-    jmp .L_endfor_3
-.L_forbody_1:
-    ; line 128
-    ; line 128
-    mov rdi, qword [rbp-200]
-    xor eax, eax
-    call is_prime
-    mov qword [rbp-224], rax
-    mov rax, qword [rbp-224]
-    test eax, eax
-    jnz .L_then_4
-    jmp .L_endif_5
-.L_then_4:
-    ; line 129
-    ; line 129
-    ; line 129
-    lea rdi, [rel Lstr_0]
-    mov rsi, qword [rbp-200]
-    xor eax, eax
-    call printf
-    mov qword [rbp-232], rax
-    jmp .L_endif_5
-.L_endif_5:
-    jmp .L_forupd_2
-.L_forupd_2:
-    ; line 127
-    mov rax, qword [rbp-200]
-    mov ecx, 1
-    add eax, ecx
-    mov qword [rbp-240], rax
-    ; line 127
-    mov rax, qword [rbp-240]
-    mov qword [rbp-208], rax
-    ; PHI resolution: L_forupd_2 -> L_for_0
-    mov rax, qword [rbp-208]
-    mov dword [rbp-200], eax
-    jmp .L_for_0
-.L_endfor_3:
-    ; line 132
-    ; line 132
-    lea rdi, [rel Lstr_1]
-    xor eax, eax
-    call printf
-    mov qword [rbp-248], rax
-    ; line 135: int sum
-    xor eax, eax
-    mov qword [rbp-256], rax
-    ; line 136: int i
-    mov eax, 1
-    mov qword [rbp-264], rax
-    ; PHI resolution: L_endfor_3 -> L_for_6
-    mov rax, qword [rbp-264]
-    mov dword [rbp-272], eax
-    mov rax, qword [rbp-256]
-    mov dword [rbp-288], eax
-    jmp .L_for_6
-.L_for_6:
-    ; line 136
-    mov rax, qword [rbp-272]
-    mov ecx, 10
-    cmp eax, ecx
-    setle al
-    movzx eax, al
-    mov qword [rbp-304], rax
-    mov rax, qword [rbp-304]
-    test eax, eax
-    jnz .L_forbody_7
-    jmp .L_endfor_9
-.L_forbody_7:
-    ; line 137
-    mov rax, qword [rbp-272]
-    cdq
-    mov ecx, 2
-    idiv ecx
-    mov eax, edx
-    mov qword [rbp-312], rax
-    ; line 137
-    mov rax, qword [rbp-312]
-    xor ecx, ecx
-    cmp eax, ecx
-    sete al
-    movzx eax, al
-    mov qword [rbp-320], rax
-    mov rax, qword [rbp-320]
-    test eax, eax
-    jnz .L_then_10
-    ; PHI resolution: L_forbody_7 -> L_endif_11
-    mov rax, qword [rbp-288]
-    mov dword [rbp-296], eax
-    jmp .L_endif_11
-.L_then_10:
-    ; line 138
-    mov rax, qword [rbp-288]
-    mov rcx, qword [rbp-272]
-    add eax, ecx
-    mov qword [rbp-328], rax
-    ; line 138
-    mov rax, qword [rbp-328]
-    mov qword [rbp-336], rax
-    ; PHI resolution: L_then_10 -> L_endif_11
-    mov rax, qword [rbp-336]
-    mov dword [rbp-296], eax
-    jmp .L_endif_11
-.L_endif_11:
-    jmp .L_forupd_8
-.L_forupd_8:
-    ; line 136
-    mov rax, qword [rbp-272]
-    mov ecx, 1
-    add eax, ecx
-    mov qword [rbp-344], rax
-    ; line 136
-    mov rax, qword [rbp-344]
-    mov qword [rbp-280], rax
-    ; PHI resolution: L_forupd_8 -> L_for_6
-    mov rax, qword [rbp-280]
-    mov dword [rbp-272], eax
-    mov rax, qword [rbp-296]
-    mov dword [rbp-288], eax
-    jmp .L_for_6
-.L_endfor_9:
-    ; line 141
-    ; line 141
-    ; line 141
-    lea rdi, [rel Lstr_10]
-    mov rsi, qword [rbp-296]
-    xor eax, eax
-    call printf
-    mov qword [rbp-352], rax
-    ; line 144
-    mov rax, qword [rbp-16]
-    xor ecx, ecx
-    cmp eax, ecx
-    setg al
-    movzx eax, al
-    mov qword [rbp-360], rax
-    mov rax, qword [rbp-360]
-    test eax, eax
-    jnz .L_and_rhs_14
-    ; PHI resolution: L_endfor_9 -> L_and_end_15
-    xor eax, eax
-    mov dword [rbp-376], eax
-    jmp .L_and_end_15
-.L_and_rhs_14:
-    ; line 144
-    mov rax, qword [rbp-16]
-    mov ecx, 100
-    cmp eax, ecx
-    setl al
-    movzx eax, al
-    mov qword [rbp-368], rax
-    ; PHI resolution: L_and_rhs_14 -> L_and_end_15
-    mov rax, qword [rbp-368]
-    mov dword [rbp-376], eax
-    jmp .L_and_end_15
-.L_and_end_15:
-    mov rax, qword [rbp-376]
-    test eax, eax
-    jz .L_or_rhs_12
-    ; PHI resolution: L_and_end_15 -> L_or_end_13
-    mov eax, 1
-    mov dword [rbp-384], eax
-    jmp .L_or_end_13
-.L_or_rhs_12:
-    ; PHI resolution: L_or_rhs_12 -> L_or_end_13
-    mov rax, qword [rbp-24]
-    mov dword [rbp-384], eax
-    jmp .L_or_end_13
-.L_or_end_13:
-    ; line 144: bool check
-    mov rax, qword [rbp-384]
-    mov qword [rbp-392], rax
-    ; line 145
-    ; line 145
-    ; line 145
-    lea rdi, [rel Lstr_11]
-    mov rsi, qword [rbp-392]
-    xor eax, eax
-    call printf
-    mov qword [rbp-400], rax
-    ; line 147
-    ; line 147
-    lea rdi, [rel Lstr_12]
-    xor eax, eax
-    call printf
-    mov qword [rbp-408], rax
-    xor eax, eax
-    leave
-    ret
+  L_then_0:
+    PARAM 0, t0
+    PARAM 1, t1
+    PARAM 2, t2
+    t4 = CALL partition, 3
+    t5 = MOVE t4    # int pi
+    t6 = SUB t5, 1
+    PARAM 0, t0
+    PARAM 1, t1
+    PARAM 2, t6
+    t7 = CALL quicksort, 3
+    t8 = ADD t5, 1
+    PARAM 0, t0
+    PARAM 1, t8
+    PARAM 2, t2
+    t9 = CALL quicksort, 3
+    JUMP L_endif_1
 
+  L_endif_1:
+    RETURN
 
-section .rodata
-Lstr_0:
-    db `%d `, 0
-Lstr_1:
-    db `\n`, 0
-Lstr_2:
-    db `=== MiniCompiler Showcase ===\n\n`, 0
-Lstr_3:
-    db `1. Basics: x = %d, flag = %d\n`, 0
-Lstr_4:
-    db `2. Factorial(5) = %d\n`, 0
-Lstr_5:
-    db `3. Fibonacci(10) = %d\n`, 0
-Lstr_6:
-    db `4. Before sort: `, 0
-Lstr_7:
-    db `   After sort:  `, 0
-Lstr_8:
-    db `5. Optimized computation = %d\n`, 0
-Lstr_9:
-    db `6. Primes up to 20: `, 0
-Lstr_10:
-    db `7. Sum of evens 1..10 = %d\n`, 0
-Lstr_11:
-    db `8. Logic check = %d\n`, 0
-Lstr_12:
-    db `\n=== All features demonstrated! ===\n`, 0
+function print_array: void (int arr, int size)
+  entry:
+    t0 = MOVE [arr]
+    t1 = MOVE [size]
+    t2 = MOVE 0    # int i
+    JUMP L_for_0
+
+  L_for_0:
+    t3 = PHI (t2, entry), (t8, L_forupd_2)
+    t4 = CMP_LT t3, t1
+    JUMP_IF t4, L_forbody_1
+    JUMP L_endfor_3
+
+  L_forbody_1:
+    t5 = LOAD_ELEM t0[t3]
+    PARAM 0, "%d "
+    PARAM 1, t5
+    t6 = CALL printf, 2
+    JUMP L_forupd_2
+
+  L_forupd_2:
+    t7 = ADD t3, 1
+    t8 = MOVE t7
+    JUMP L_for_0
+
+  L_endfor_3:
+    PARAM 0, "
+"
+    t9 = CALL printf, 1
+    RETURN
+
+function compute_optimized: int ()
+  entry:
+    t0 = ADD 10, 20
+    t1 = MOVE t0    # int x
+    t2 = MUL t1, 2
+    t3 = MOVE t2    # int y
+    t4 = ADD t3, 0
+    t5 = MOVE t4    # int z
+    t6 = CMP_GT t3, 50
+    JUMP_IF t6, L_then_0
+    JUMP L_else_1
+
+  L_then_0:
+    RETURN t3
+
+  L_else_1:
+    RETURN 0
+
+  L_endif_2:
+    RETURN 0
+
+function fibonacci: int (int n)
+  entry:
+    t0 = MOVE [n]
+    t1 = CMP_LE t0, 0
+    JUMP_IF t1, L_then_0
+    JUMP L_endif_1
+
+  L_then_0:
+    RETURN 0
+
+  L_endif_1:
+    t2 = CMP_EQ t0, 1
+    JUMP_IF t2, L_then_2
+    JUMP L_endif_3
+
+  L_then_2:
+    RETURN 1
+
+  L_endif_3:
+    t3 = MOVE 0    # int a
+    t4 = MOVE 1    # int b
+    t5 = MOVE 2    # int i
+    JUMP L_for_4
+
+  L_for_4:
+    t6 = PHI (t3, L_endif_3), (t12, L_forupd_6)
+    t7 = PHI (t4, L_endif_3), (t13, L_forupd_6)
+    t8 = PHI (t5, L_endif_3), (t15, L_forupd_6)
+    t9 = CMP_LE t8, t0
+    JUMP_IF t9, L_forbody_5
+    JUMP L_endfor_7
+
+  L_forbody_5:
+    t10 = ADD t6, t7
+    t11 = MOVE t10    # int temp
+    t12 = MOVE t7
+    t13 = MOVE t11
+    JUMP L_forupd_6
+
+  L_forupd_6:
+    t14 = ADD t8, 1
+    t15 = MOVE t14
+    JUMP L_for_4
+
+  L_endfor_7:
+    RETURN t13
+
+function is_prime: bool (int n)
+  entry:
+    t0 = MOVE [n]
+    t1 = CMP_LT t0, 2
+    JUMP_IF t1, L_then_0
+    JUMP L_endif_1
+
+  L_then_0:
+    RETURN false
+
+  L_endif_1:
+    t2 = MOVE 2    # int i
+    JUMP L_for_2
+
+  L_for_2:
+    t3 = PHI (t2, L_endif_1), (t9, L_forupd_4)
+    t4 = MUL t3, t3
+    t5 = CMP_LE t4, t0
+    JUMP_IF t5, L_forbody_3
+    JUMP L_endfor_5
+
+  L_forbody_3:
+    t6 = MOD t0, t3
+    t7 = CMP_EQ t6, 0
+    JUMP_IF t7, L_then_6
+    JUMP L_endif_7
+
+  L_then_6:
+    RETURN false
+
+  L_endif_7:
+    JUMP L_forupd_4
+
+  L_forupd_4:
+    t8 = ADD t3, 1
+    t9 = MOVE t8
+    JUMP L_for_2
+
+  L_endfor_5:
+    RETURN true
+
+function main: int ()
+  entry:
+    PARAM 0, "=== MiniCompiler Showcase ===
+
+"
+    t0 = CALL printf, 1
+    t1 = MOVE 42    # int x
+    t2 = MOVE true    # bool flag
+    PARAM 0, "1. Basics: x = %d, flag = %d
+"
+    PARAM 1, t1
+    PARAM 2, t2
+    t3 = CALL printf, 3
+    PARAM 0, 5
+    t4 = CALL factorial, 1
+    PARAM 0, "2. Factorial(5) = %d
+"
+    PARAM 1, t4
+    t5 = CALL printf, 2
+    PARAM 0, 10
+    t6 = CALL fibonacci, 1
+    PARAM 0, "3. Fibonacci(10) = %d
+"
+    PARAM 1, t6
+    t7 = CALL printf, 2
+    t8 = ALLOCA 32
+    STORE_ELEM t8[0], 10
+    STORE_ELEM t8[1], 7
+    STORE_ELEM t8[2], 8
+    STORE_ELEM t8[3], 9
+    STORE_ELEM t8[4], 1
+    STORE_ELEM t8[5], 5
+    STORE_ELEM t8[6], 3
+    STORE_ELEM t8[7], 6
+    t9 = MOVE t8    # int arr
+    PARAM 0, "4. Before sort: "
+    t10 = CALL printf, 1
+    PARAM 0, t9
+    PARAM 1, 8
+    t11 = CALL print_array, 2
+    PARAM 0, t9
+    PARAM 1, 0
+    PARAM 2, 7
+    t12 = CALL quicksort, 3
+    PARAM 0, "   After sort:  "
+    t13 = CALL printf, 1
+    PARAM 0, t9
+    PARAM 1, 8
+    t14 = CALL print_array, 2
+    t15 = CALL compute_optimized, 0
+    t16 = MOVE t15    # int opt
+    PARAM 0, "5. Optimized computation = %d
+"
+    PARAM 1, t16
+    t17 = CALL printf, 2
+    PARAM 0, "6. Primes up to 20: "
+    t18 = CALL printf, 1
+    t19 = MOVE 2    # int i
+    JUMP L_for_0
+
+  L_for_0:
+    t20 = PHI (t19, entry), (t25, L_forupd_2)
+    t21 = CMP_LE t20, 20
+    JUMP_IF t21, L_forbody_1
+    JUMP L_endfor_3
+
+  L_forbody_1:
+    PARAM 0, t20
+    t22 = CALL is_prime, 1
+    JUMP_IF t22, L_then_4
+    JUMP L_endif_5
+
+  L_then_4:
+    PARAM 0, "%d "
+    PARAM 1, t20
+    t23 = CALL printf, 2
+    JUMP L_endif_5
+
+  L_endif_5:
+    JUMP L_forupd_2
+
+  L_forupd_2:
+    t24 = ADD t20, 1
+    t25 = MOVE t24
+    JUMP L_for_0
+
+  L_endfor_3:
+    PARAM 0, "
+"
+    t26 = CALL printf, 1
+    t27 = MOVE 0    # int sum
+    t28 = MOVE 1    # int i
+    JUMP L_for_6
+
+  L_for_6:
+    t29 = PHI (t28, L_endfor_3), (t38, L_forupd_8)
+    t30 = PHI (t27, L_endfor_3), (t36, L_forupd_8)
+    t31 = CMP_LE t29, 10
+    JUMP_IF t31, L_forbody_7
+    JUMP L_endfor_9
+
+  L_forbody_7:
+    t32 = MOD t29, 2
+    t33 = CMP_EQ t32, 0
+    JUMP_IF t33, L_then_10
+    JUMP L_endif_11
+
+  L_then_10:
+    t34 = ADD t30, t29
+    t35 = MOVE t34
+    JUMP L_endif_11
+
+  L_endif_11:
+    t36 = PHI (t35, L_then_10), (t30, L_forbody_7)
+    JUMP L_forupd_8
+
+  L_forupd_8:
+    t37 = ADD t29, 1
+    t38 = MOVE t37
+    JUMP L_for_6
+
+  L_endfor_9:
+    PARAM 0, "7. Sum of evens 1..10 = %d
+"
+    PARAM 1, t36
+    t39 = CALL printf, 2
+    t40 = CMP_GT t1, 0
+    JUMP_IF t40, L_and_rhs_14
+    JUMP L_and_end_15
+
+  L_and_rhs_14:
+    t41 = CMP_LT t1, 100
+    JUMP L_and_end_15
+
+  L_and_end_15:
+    t42 = PHI (false, L_endfor_9), (t41, L_and_rhs_14)
+    JUMP_IF t42, L_or_end_13
+    JUMP L_or_rhs_12
+
+  L_or_rhs_12:
+    JUMP L_or_end_13
+
+  L_or_end_13:
+    t43 = PHI (true, L_and_end_15), (t2, L_or_rhs_12)
+    t44 = MOVE t43    # bool check
+    PARAM 0, "8. Logic check = %d
+"
+    PARAM 1, t44
+    t45 = CALL printf, 2
+    PARAM 0, "
+=== All features demonstrated! ===
+"
+    t46 = CALL printf, 1
+    RETURN 0
+

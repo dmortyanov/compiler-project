@@ -4,7 +4,7 @@
 #   demo/             — демо-файлы (.src, run_demo.sh)
 #   runtime.asm       — runtime-библиотека
 
-.PHONY: demo check setup
+.PHONY: demo check setup clean compiler
 
 # Проверка зависимостей
 setup:
@@ -24,3 +24,12 @@ check:
 	@chmod +x compiler 2>/dev/null || true
 	./compiler --help || ./compiler lex --input demo/showcase.src > /dev/null
 	@echo "Компилятор работает!"
+
+# Информационная цель для compiler
+compiler:
+	@echo "Компилятор уже собран (это готовый статически слинкованный релизный бинарник)."
+
+# Очистка временных файлов демонстрации
+clean:
+	rm -f demo/showcase.asm demo/showcase.o demo/showcase
+

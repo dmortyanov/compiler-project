@@ -49,7 +49,7 @@ run_test() {
 
     # 3. Link
     local bin_file="$TMPDIR/${name}"
-    if ! ld -o "$bin_file" "$TMPDIR/runtime.o" "$obj_file" 2>"$TMPDIR/ld_err.txt"; then
+    if ! gcc -no-pie -nostartfiles -o "$bin_file" "$TMPDIR/runtime.o" "$obj_file" 2>"$TMPDIR/ld_err.txt"; then
         echo "  FAIL: $name — linker error:"
         head -5 "$TMPDIR/ld_err.txt"
         FAIL=$((FAIL + 1))

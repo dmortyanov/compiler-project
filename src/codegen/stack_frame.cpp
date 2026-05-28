@@ -49,8 +49,7 @@ void StackFrame::build(const IRFunction& func) {
         for (const auto& instr : block.instructions) {
             // Destination
             if (instr.opcode == IROpcode::ALLOCA) {
-                if (!has_slot(instr.dest.name + "_buf")) {
-                    alloc_slot(instr.dest.name + "_buf", instr.srcs[0].int_val);
+                if (!has_slot(instr.dest.name)) {
                     alloc_slot(instr.dest.name, x86abi::QWORD_SIZE);
                 }
             } else if (instr.dest.is_temp() && !has_slot(instr.dest.name)) {

@@ -4,6 +4,8 @@
 #include "preprocessor/preprocessor.h"
 
 #include <vector>
+#include "utils/file_utils.h"
+#include <cstdio>
 
 // Helper: tokenize source string
 static std::vector<Token> tokenize(const std::string& source) {
@@ -153,3 +155,89 @@ TEST_CASE("Lexer: error on unknown char", "[lexer]") {
     // Scanner should report errors but still continue
     CHECK(!scanner.errors().empty());
 }
+
+// ---- Preprocessor tests ----
+
+TEST_CASE("Preprocessor: macro definition and expansion", "[preprocessor]") {
+    // 1. Basic define and undefine
+    {
+        Preprocessor pp("#define MAX 100\nint a = MAX;\n#undef MAX\nint b = MAX;");
+        std::string processed = pp.process();
+        CHECK(pp.errors().empty());
+        // MAX should be expanded to 100 in first line, but not in second line
+        CHECK(processed.find("100") != std::string::npos);
+        // After undef it should remain MAX
+        CHECK(processed.find("MAX") != std::string::npos);
+    }
+
+    // 2. Conditionals #ifdef and #ifndef
+    {
+        Preprocessor pp("#define OPT\n#ifdef OPT\nint a = 1;\n#endif\n#ifndef OPT\nint b = 2;\n#endif");
+        std::string processed = pp.process();
+        CHECK(pp.errors().empty());
+        CHECK(processed.find("int a = 1;") != std::string::npos);
+        CHECK(processed.find("int b = 2;") == std::string::npos);
+    }
+    {
+        Preprocessor pp("#ifndef OPT\nint a = 1;\n#endif\n#ifdef OPT\nint b = 2;\n#endif");
+        std::string processed = pp.process();
+        CHECK(pp.errors().empty());
+        CHECK(processed.find("int a = 1;") != std::string::npos);
+        CHECK(processed.find("int b = 2;") == std::string::npos);
+    }
+
+    // 3. Nested conditionals
+    {
+        Preprocessor pp("#define OPT1\n#define OPT2\n#ifdef OPT1\n#ifdef OPT2\nint a = 1;\n#endif\n#endif");
+        std::string processed = pp.process();
+        CHECK(pp.errors().empty());
+        CHECK(processed.find("int a = 1;") != std::string::npos);
+    }
+
+    // 4. Macro recursion error
+    {
+        Preprocessor pp("#define A B\n#define B A\nint x = A;");
+        std::string processed = pp.process();
+        CHECK(!pp.errors().empty());
+        CHECK(pp.errors()[0].message.find("Macro recursion detected") != std::string::npos);
+    }
+
+    // 5. Unmatched endif error
+    {
+        Preprocessor pp("#endif");
+        std::string processed = pp.process();
+        CHECK(!pp.errors().empty());
+        CHECK(pp.errors()[0].message.find("Unmatched #endif") != std::string::npos);
+    }
+
+    // 6. Unterminated block comment error
+    {
+        Preprocessor pp("/* unterminated block comment");
+        std::string processed = pp.process();
+        CHECK(!pp.errors().empty());
+        CHECK(pp.errors()[0].message.find("Unterminated multi-line comment") != std::string::npos);
+    }
+
+    // 7. Unterminated conditional block error
+    {
+        Preprocessor pp("#ifdef OPT");
+        std::string processed = pp.process();
+        CHECK(!pp.errors().empty());
+        CHECK(pp.errors()[0].message.find("Unterminated conditional block") != std::string::npos);
+    }
+}
+
+TEST_CASE("Utils: file utils read and write", "[utils]") {
+    // Write success
+    CHECK(utils::write_file("temp_test.txt", "hello"));
+    // Read success
+    CHECK(utils::read_file("temp_test.txt") == "hello");
+    // Read failure (non-existent file)
+    CHECK(utils::read_file("non_existent_file_12345.txt").empty());
+    // Write failure (invalid directory path)
+    CHECK(!utils::write_file("invalid_dir_123/file.txt", "hello"));
+    
+    // Cleanup
+    std::remove("temp_test.txt");
+}
+

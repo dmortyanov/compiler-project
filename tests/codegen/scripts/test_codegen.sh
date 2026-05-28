@@ -65,7 +65,7 @@ for src in "${!TESTS[@]}"; do
 
     # 3. Линкуем с runtime
     bin_file="$TMPDIR/${name}"
-    if ! ld -o "$bin_file" "$TMPDIR/runtime.o" "$obj_file" 2>"$TMPDIR/ld_err.txt"; then
+    if ! gcc -no-pie -nostartfiles -o "$bin_file" "$TMPDIR/runtime.o" "$obj_file" 2>"$TMPDIR/ld_err.txt"; then
         echo "  FAIL: $name — linker error:"
         cat "$TMPDIR/ld_err.txt" | head -5
         FAIL=$((FAIL + 1))

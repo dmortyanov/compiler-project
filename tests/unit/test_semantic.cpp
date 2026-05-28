@@ -6,6 +6,7 @@
 #include "preprocessor/preprocessor.h"
 #include "semantic/analyzer.h"
 #include "semantic/errors.h"
+#include "semantic/type_system.h"
 
 #include <memory>
 #include <vector>
@@ -168,3 +169,88 @@ TEST_CASE("Semantic: valid recursive function", "[semantic]") {
     )");
     CHECK(errors.empty());
 }
+
+// ---- More semantic edge cases ----
+
+TEST_CASE("Semantic: invalid operators", "[semantic]") {
+    CHECK(!analyze("fn main() -> int { bool x = true + 1; return 0; }").empty());
+    CHECK(!analyze("fn main() -> int { bool x = true && 1; return 0; }").empty());
+    CHECK(!analyze("fn main() -> int { bool x = !1; return 0; }").empty());
+}
+
+TEST_CASE("Semantic: invalid condition types", "[semantic]") {
+    CHECK(!analyze("fn main() -> int { if (\"hello\") { return 1; } return 0; }").empty());
+    CHECK(!analyze("fn main() -> int { while (\"hello\") {} return 0; }").empty());
+    CHECK(!analyze("fn main() -> int { for (int i=0; \"hello\"; i=i+1) {} return 0; }").empty());
+}
+
+TEST_CASE("Semantic: invalid assignment target", "[semantic]") {
+    CHECK(!analyze("fn main() -> int { 5 = 10; return 0; }").empty());
+}
+
+TEST_CASE("Semantic: unknown types", "[semantic]") {
+    CHECK(!analyze("fn main(UnknownType x) -> int { return 0; }").empty());
+}
+
+TEST_CASE("Semantic: array semantic errors", "[semantic]") {
+    CHECK(!analyze("fn foo(int arr[]) -> void {} fn main() -> int { foo(10); return 0; }").empty());
+    CHECK(!analyze("fn main() -> int { int x = 0; int y = x[0]; return 0; }").empty());
+    CHECK(!analyze("fn main() -> int { int arr[5] = {1, 2, 3, 4, 5}; int y = arr[true]; return 0; }").empty());
+}
+
+TEST_CASE("Semantic: struct duplicate and type errors", "[semantic]") {
+    CHECK(!analyze("struct Point { int x; int x; }\nfn main() -> int { return 0; }").empty());
+}
+
+TEST_CASE("TypeSystem: TypeRegistry edge cases", "[semantic]") {
+    TypeRegistry reg;
+    
+    // Test base types resolution
+    CHECK(reg.type_int()->kind == TypeKind::Int);
+    CHECK(reg.type_float()->kind == TypeKind::Float);
+    CHECK(reg.type_bool()->kind == TypeKind::Bool);
+    CHECK(reg.type_void()->kind == TypeKind::Void);
+    CHECK(reg.type_string()->kind == TypeKind::String);
+    CHECK(reg.type_error()->kind == TypeKind::Error);
+    CHECK(reg.resolve("") == reg.type_void());
+    CHECK(reg.resolve("non_existent_type_123") == nullptr);
+
+    // Test struct fields resolution with non-existent types
+    std::vector<StructField> fields = {
+        {"field1", "int", 1, 1},
+        {"field2", "non_existent", 1, 1}
+    };
+    Type* st = reg.register_struct("MyStruct", fields);
+    CHECK(st->size_bytes == 8); // 4 for int + 4 fallback for non_existent
+
+    // Test array registration null cases and existing sizes
+    CHECK(reg.register_array(nullptr, {}) == reg.type_error());
+    Type* arr1 = reg.register_array(reg.type_int(), {5});
+    Type* arr2 = reg.register_array(reg.type_int(), {5});
+    CHECK(arr1 == arr2); // returns existing
+
+    // Test compatibility
+    CHECK(!reg.is_compatible(nullptr, reg.type_int()));
+    CHECK(!reg.is_compatible(reg.type_int(), nullptr));
+    CHECK(reg.is_compatible(reg.type_error(), reg.type_int()));
+    CHECK(reg.is_compatible(reg.type_int(), reg.type_float())); // int is compatible to float
+    CHECK(!reg.is_compatible(reg.type_int(), reg.type_bool()));
+
+    // Array compatibility with mismatched element types or sizes
+    Type* float_arr = reg.register_array(reg.type_float(), {5});
+    Type* int_arr_unsized = reg.register_array(reg.type_int(), {0});
+    CHECK(!reg.is_compatible(arr1, float_arr)); // mismatched element types
+    CHECK(reg.is_compatible(arr1, int_arr_unsized)); // unsized accepts any size
+    
+    Type* arr_2d_1 = reg.register_array(reg.type_int(), {5, 5});
+    CHECK(!reg.is_compatible(arr1, arr_2d_1)); // mismatched rank
+
+    // Test common numeric type
+    CHECK(reg.common_numeric_type(nullptr, reg.type_int()) == reg.type_error());
+    CHECK(reg.common_numeric_type(reg.type_int(), nullptr) == reg.type_error());
+    CHECK(reg.common_numeric_type(reg.type_error(), reg.type_int()) == reg.type_error());
+    CHECK(reg.common_numeric_type(reg.type_int(), reg.type_float()) == reg.type_float());
+    CHECK(reg.common_numeric_type(reg.type_int(), reg.type_int()) == reg.type_int());
+    CHECK(reg.common_numeric_type(reg.type_int(), reg.type_bool()) == reg.type_error());
+}
+

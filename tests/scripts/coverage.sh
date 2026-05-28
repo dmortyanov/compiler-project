@@ -26,6 +26,47 @@ bash tests/scripts/integration_test.sh ./build/compiler >/dev/null 2>&1
 bash tests/scripts/differential_test.sh ./build/compiler >/dev/null 2>&1
 bash tests/scripts/property_test.sh ./build/compiler >/dev/null 2>&1
 
+echo -e "\n${BLUE}Запуск дополнительных CLI-команд и флагов для максимального покрытия (Peephole, LSRA, DWARF, AST/IR formats)...${NC}"
+# 1. Сборка с разными опциями кодогенерации (LSRA, Peephole, DWARF)
+./build/compiler compile --input tests/codegen/valid/arithmetic/simple_add.src --output /dev/null --optimize --inline --x86-peephole --regalloc lsra --dwarf >/dev/null 2>&1
+./build/compiler compile --input tests/codegen/valid/control_flow/if_else.src --output /dev/null --optimize --inline --x86-peephole --regalloc lsra --dwarf >/dev/null 2>&1
+
+# 2. Вызов лексера
+./build/compiler lex --input demo/showcase.src --output /dev/null >/dev/null 2>&1
+
+# 3. Вызов парсера с разными форматами
+./build/compiler parse --input demo/showcase.src --output /dev/null --format text --verbose >/dev/null 2>&1
+./build/compiler parse --input demo/showcase.src --output /dev/null --format json >/dev/null 2>&1
+./build/compiler parse --input demo/showcase.src --output /dev/null --format dot >/dev/null 2>&1
+
+# 4. Вызов семантического анализатора с типами
+./build/compiler check --input demo/showcase.src --output /dev/null --verbose --show-types >/dev/null 2>&1
+
+# 5. Вызов дампа таблицы символов
+./build/compiler symbols --input demo/showcase.src --output /dev/null --format text >/dev/null 2>&1
+./build/compiler symbols --input demo/showcase.src --output /dev/null --format json >/dev/null 2>&1
+
+# 6. Вызов генерации IR с разными форматами
+./build/compiler ir --input demo/showcase.src --output /dev/null --format text --stats --optimize --inline >/dev/null 2>&1
+./build/compiler ir --input demo/showcase.src --output /dev/null --format json --stats --optimize --inline >/dev/null 2>&1
+./build/compiler ir --input demo/showcase.src --output /dev/null --format dot --stats --optimize --inline >/dev/null 2>&1
+
+# 7. Вызов компилятора на некорректном файле для покрытия веток с ошибками в CLI
+./build/compiler compile --input non_existent_file.src --output /dev/null >/dev/null 2>&1
+./build/compiler symbols --input non_existent_file.src --format json >/dev/null 2>&1
+
+# 8. Запуск на всех семантически некорректных файлах для покрытия веток ошибок анализатора
+for bad_src in $(find tests/semantic/invalid -name "*.src" 2>/dev/null); do
+    ./build/compiler parse --input "$bad_src" --output /dev/null --format text --verbose >/dev/null 2>&1
+    ./build/compiler check --input "$bad_src" --output /dev/null >/dev/null 2>&1
+    ./build/compiler symbols --input "$bad_src" --format json >/dev/null 2>&1
+done
+
+# 9. Запуск на всех синтаксически некорректных файлах для покрытия веток error recovery парсера
+for bad_src in $(find tests/parser/invalid -name "*.src" 2>/dev/null); do
+    ./build/compiler parse --input "$bad_src" --output /dev/null --format text --verbose >/dev/null 2>&1
+done
+
 echo -e "\n${BOLD}=== Результаты покрытия кода по файлам ===${NC}\n"
 printf "%-45s | %-10s | %-20s\n" "Файл" "Покрытие" "Строки (Покр/Всего)"
 echo "----------------------------------------------+------------+---------------------"
@@ -38,13 +79,13 @@ FILES=$(find src -name "*.cpp" | sort)
 
 for f in $FILES; do
     # Ищем соответствующий .gcda файл в каталоге сборки
-    gcda=$(find build/CMakeFiles -name "$(basename "$f").gcda" 2>/dev/null | head -n 1)
+    gcda=$(find build/CMakeFiles -path "*/$f.gcda" 2>/dev/null | head -n 1)
     
     if [ -n "$gcda" ]; then
         # Вызываем gcov и извлекаем данные с помощью awk
-        gcov_out=$(gcov -n -o "$(dirname "$gcda")" "$f" 2>/dev/null)
+        gcov_out=$(gcov -n -o "$gcda" "$f" 2>/dev/null)
         
-        stats=$(echo "$gcov_out" | awk '
+        stats=$(echo "$gcov_out" | awk -v target="$f" '
             BEGIN {
                 percent = 0.0;
                 total = 0;
@@ -53,8 +94,17 @@ for f in $FILES; do
                 green = "'"$GREEN"'";
                 yellow = "'"$YELLOW"'";
                 found = 0;
+                matched = 0;
             }
-            /Lines executed/ {
+            /^File / {
+                if (index($0, target) > 0) {
+                    matched = 1;
+                } else {
+                    matched = 0;
+                }
+                next;
+            }
+            matched && /Lines executed/ {
                 # Lines executed:93.45% of 106
                 split($0, a, ":");
                 split(a[2], b, "%");
@@ -66,14 +116,16 @@ for f in $FILES; do
                 if (percent >= 80.0) color = green;
                 else if (percent >= 50.0) color = yellow;
                 found = 1;
+                matched = 0;
                 exit;
             }
-            /No executable lines/ {
+            matched && /No executable lines/ {
                 percent = 100.00;
                 total = 0;
                 covered = 0;
                 color = green;
                 found = 1;
+                matched = 0;
                 exit;
             }
             END {
