@@ -34,12 +34,23 @@ public:
     /// Включить/выключить x86 peephole оптимизацию.
     void set_peephole(bool enable) { peephole_enabled_ = enable; }
 
+    /// Включить генерацию DWARF debug info (.file/.loc).
+    /// При включении вывод переключается на GAS-синтаксис (Intel-style).
+    void set_dwarf(bool enable) { emit_dwarf_ = enable; }
+
+    /// Установить имя исходного файла для DWARF .file директивы.
+    void set_source_file(const std::string& path) { source_filename_ = path; }
+
 private:
     std::ostringstream out_;          // итоговый выходной буфер
     StackFrame frame_;
     RegisterAllocator regalloc_;
     bool peephole_enabled_ = false;
     X86Peephole peephole_;
+
+    bool emit_dwarf_ = false;
+    std::string source_filename_;
+    int last_emitted_line_ = 0;  // для подавления дублирующихся .loc
 
     // Строковые литералы: label → value
     std::vector<std::pair<std::string, std::string>> string_literals_;
@@ -48,7 +59,7 @@ private:
     // Для PHI-разрешения:
     //   phi_moves_[dest_block][pred_block] = [{dest_name, source_operand}, ...]
     struct PhiMove {
-        std::string dest_name;
+        Operand dest;
         Operand source;
     };
     using PhiMoveMap = std::unordered_map<

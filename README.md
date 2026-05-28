@@ -1,219 +1,193 @@
 # MiniCompiler
 
-Учебный проект мини-компилятора для упрощенного C-подобного языка.
+Пояснительная записка к курсовой работе по дисциплине «Прикладные алгоритмы».
 
-## Команда
+## Оглавление
+1. [Введение](#введение)
+2. [Особенности языка (Синтаксис и возможности)](#особенности-языка)
+3. [Архитектура компилятора и этапы трансляции](#архитектура-компилятора)
+4. [Оптимизации (Optimizer Passes)](#оптимизации)
+5. [Интерфейс командной строки (CLI)](#интерфейс-командной-строки)
+6. [Команды сборки (Makefile)](#команды-сборки-makefile)
+7. [Структура проекта (Файлы)](#структура-проекта)
 
-- Участники: Олонцев Иван, ИСБ-123
+---
 
-## Сборка (CMake)
+## Введение
+**MiniCompiler** — это полнофункциональный учебный компилятор для статически типизированного C-подобного языка программирования. Компилятор осуществляет полный цикл трансляции: от чтения исходного текста до генерации машинного кода для платформы **x86-64 (Linux/ELF64)**.
 
-```bash
-# Для Linux / macOS:
-cmake -S . -B build
-cmake --build build
+Проект разработан на **C++17** "с нуля", без использования сторонних генераторов лексеров и парсеров (таких как Flex, Bison или ANTLR).
 
-# Для Windows (Visual Studio):
-cmake -S . -B build
-cmake --build build --config Debug
+---
+
+## Особенности языка
+Язык MiniCompiler — это упрощенная версия языка C со строгой статической типизацией.
+
+### 1. Типы данных
+- `int` — 32-битное целое число (знаковое).
+- `bool` — логический тип (`true` / `false`).
+- `string` — строковый тип (для вывода текста).
+- `int[]` — одномерный динамический массив целых чисел.
+
+### 2. Управляющие конструкции
+- **Условия:** `if (condition) { ... } else { ... }`
+- **Цикл while:** `while (condition) { ... }`
+- **Цикл for:** `for (int i = 0; i < n; i = i + 1) { ... }`
+
+### 3. Функции
+Программа состоит из набора функций. Обязательна функция `fn main() -> int`.
+```c
+fn factorial(int n) -> int {
+    if (n <= 1) { return 1; }
+    return n * factorial(n - 1);
+}
 ```
 
-> **Внимание по путям (Windows vs Linux)**
-> Во всех примерах ниже предполагается, что исполняемый файл находится по пути `./build/compiler` (Linux/macOS). 
-> **Для Windows (CMD/PowerShell)** используйте путь `.\build\Debug\compiler.exe` (или `Release`) и обратные слеши `\` для путей.
-> Например: `.\build\Debug\compiler.exe lex --input examples\hello.src`
-
-## Быстрый старт
-
-### 1. Лексер
-
-```bash
-# Linux
-./build/compiler lex --input examples/hello.src --output tokens.txt
-
-# Windows
-.\build\Debug\compiler.exe lex --input examples\hello.src --output tokens.txt
+### 4. Массивы
+Массивы размещаются в куче (heap). Выделение памяти происходит с помощью `new`.
+```c
+int[] arr = new int[10];
+arr[0] = 42;
+int val = arr[0];
 ```
 
-### 2. Парсер
+### 5. Операторы
+- **Арифметические:** `+`, `-`, `*`, `/`, `%`
+- **Логические:** `&&`, `||`, `!`
+- **Сравнения:** `==`, `!=`, `<`, `>`, `<=`, `>=`
 
-```bash
-# Текстовый формат AST (Linux)
-./build/compiler parse --input examples/factorial.src
+---
 
-# Текстовый формат AST (Windows)
-.\build\Debug\compiler.exe parse --input examples\factorial.src
-```
+## Архитектура компилятора
+Компилятор построен как классический многопроходный (multi-pass) транслятор:
 
-### 3. Семантический анализ (Sprint 3)
+### 1. Лексический анализатор (`src/lexer/`)
+Считывает исходный текст и разбивает его на поток токенов (ключевые слова, идентификаторы, константы, разделители). Включает в себя поддержку препроцессора (обработка простых директив).
 
-```bash
-# Проверка программы (Linux)
-./build/compiler check --input examples/semantic_demo.src --verbose --show-types
+### 2. Синтаксический анализатор (`src/parser/`)
+Использует алгоритм рекурсивного спуска (Recursive Descent) для построения абстрактного синтаксического дерева (AST). Реализовано мощное восстановление после ошибок (Error Recovery) — парсер способен игнорировать некорректные токены до "точек синхронизации" и продолжать работу. Может экспортировать AST в текстовом виде, формате JSON или DOT (для Graphviz).
 
-# Проверка программы (Windows)
-.\build\Debug\compiler.exe check --input examples\semantic_demo.src --verbose --show-types
-```
+### 3. Семантический анализатор (`src/semantic/`)
+Проходит по AST и выполняет проверку типов (Type Checking). 
+- Строит таблицу символов (Symbol Table) с поддержкой областей видимости (Scope).
+- Проверяет корректность типов операндов, наличие возвращаемых значений у функций и инициализацию переменных.
 
-### 4. Генерация промежуточного представления (Sprint 4)
+### 4. Генератор промежуточного кода (`src/ir/`)
+Транслирует AST в платформонезависимое трехадресное представление (IR — Three-Address Code).
+Для корректной передачи состояний переменных при слиянии веток графа потока управления (CFG) компилятор генерирует **PHI-узлы** (псевдо-SSA форма).
 
-```bash
-# Генерация IR и вывод статистики (Linux)
-./build/compiler ir --input examples/factorial.src --stats --optimize
+### 5. Оптимизатор (`src/ir/optimizer.cpp`, `optimization_passes.cpp`)
+Анализирует и преобразует IR для улучшения производительности. Описан подробнее ниже.
 
-# Генерация IR и вывод статистики (Windows)
-.\build\Debug\compiler.exe ir --input examples\factorial.src --stats --optimize
-```
+### 6. Генератор машинного кода (`src/codegen/`)
+Генерирует ассемблер NASM (синтаксис Intel) для платформы x86-64. 
+- Используется стековая модель (Stack-Based Register Allocation), где все переменные хранятся в фрейме на стеке (относительно `rbp`).
+- Включает трансляцию `PHI`-узлов в серии `mov` инструкций на ребрах CFG.
+- Поддерживает генерацию DWARF-отладочной информации (`--dwarf`).
 
-### 5. Кодогенерация x86-64 (Sprint 5 и 6)
+---
 
-> **ВАЖНО (Windows)**: Кодогенератор генерирует ассемблер под System V AMD64 ABI (Linux/macOS). Код **не запустится** напрямую под Windows (нужен WSL или Linux). 
-> Однако, вы всё равно можете запустить компилятор на Windows, чтобы получить `.asm` файл и просмотреть его:
+## Оптимизации
+Оптимизатор промежуточного представления (IR) реализует следующий конвейер (Passes):
 
-```cmd
-:: Генерация .asm файла на Windows со всеми оптимизациями 6 спринта
-.\build\Debug\compiler.exe compile --input examples\factorial.src --regalloc lsra --x86-peephole --optimize
-```
+1. **Constant Folding (Свертка констант):**
+   Вычисление выражений над константами на этапе компиляции. Например: `x = 10 + 20` -> `x = 30`.
 
-**Полный пайплайн (строго Linux или WSL): компиляция → сборка → линковка → запуск**
-```bash
-# 1. Компиляция исходника нашим компилятором
-./build/compiler compile --input examples/factorial.src --output factorial.asm --regalloc lsra --x86-peephole --optimize
+2. **Algebraic Simplification (Алгебраические упрощения):**
+   Устранение бесполезных операций: `x + 0 -> x`, `y * 1 -> y`.
 
-# 2. Ассемблирование (nasm)
-nasm -f elf64 -o factorial.o factorial.asm
-nasm -f elf64 -o runtime.o src/runtime/runtime.asm
+3. **Strength Reduction (Снижение стоимости):**
+   Замена дорогих операций (умножение, деление) на более дешевые. Например: `x * 2` -> `x + x`.
 
-# 3. Линковка
-ld -o factorial runtime.o factorial.o
+4. **Copy Propagation (Распространение копий):**
+   Если есть инструкция `A = B`, оптимизатор заменяет все последующие чтения `A` на `B`.
 
-# 4. Запуск и проверка кода возврата
-./factorial
-echo $?   # Ожидается: 120 (5! = 120)
-```
+5. **Dead Code Elimination, DCE (Удаление мертвого кода):**
+   Удаление инструкций (присваиваний временным переменным), результаты которых никогда не используются в графе управления потоком.
 
-#### Архитектура кодогенерации
+6. **Jump Chaining (Склейка переходов):**
+   Оптимизация путей в графе. Если блок `A` осуществляет переход в блок `B`, а блок `B` содержит только переход в блок `C`, то `A` перенаправляется напрямую в `C`. При этом автоматически обновляются зависимости в `PHI`-узлах.
 
-- **Стратегия**: stack-based codegen — все значения хранятся в стековых слотах `[rbp-N]`
-- **ABI**: System V AMD64 — аргументы через `rdi, rsi, rdx, rcx, r8, r9`; возврат в `rax`
-- **Scratch-регистры**: `eax` (основной), `ecx` (вспомогательный), `edx` (для div/mod)
-- **PHI-узлы**: разрешаются через move-инструкции в конце предшествующего блока
-- **Выравнивание**: стек выровнен до 16 байт (ABI-требование)
+7. **Function Inlining (Встраивание функций):**
+   Встраивание коротких функций (например, `swap`) прямо в место их вызова (Call Site) для уменьшения накладных расходов. Компилятор разрезает базовые блоки, вклеивает тело вызываемой функции и корректирует потоки управления.
 
-#### Runtime-библиотека (`src/runtime/runtime.asm`)
+---
 
-| Функция | Описание | Syscall |
-|---------|----------|---------|
-| `_start` | Точка входа → вызывает `main()` | `exit(60)` |
-| `print_int(int)` | Печать числа + `\n` на stdout | `write(1)` |
-| `read_int() → int` | Чтение числа из stdin | `read(0)` |
-| `exit_program(int)` | Завершение с кодом | `exit(60)` |
+## Интерфейс командной строки (CLI)
+Компилятор представляет собой единый исполняемый файл `compiler` с поддержкой подкоманд для каждого этапа:
 
-### Примеры ошибок семантического анализа
+### `compile` (Полная сборка)
+Главная команда для получения ассемблерного кода.
+`compiler compile --input <file> [--output <file>] [--optimize] [--inline] [--regalloc lsra|stack] [--x86-peephole] [--dwarf]`
+- `--optimize` — включить все стандартные оптимизации IR (Constant folding, DCE, Copy propagation и др.).
+- `--inline` — разрешить встраивание (inlining) функций.
+- `--regalloc` — выбрать стратегию аллокатора регистров (`stack` — по умолчанию).
+- `--x86-peephole` — включить специфичные оптимизации прямо на уровне x86-генератора.
+- `--dwarf` — сгенерировать DWARF-совместимую отладочную информацию (для `gdb`).
 
-```
-semantic error: undeclared identifier: undeclared variable 'z'
-  --> program.src:4:18
-  | in function 'main'
-  = note: did you mean 'x'?
+### `lex` (Токенизация)
+`compiler lex --input <file> [--output <file>]`
+Выводит поток токенов (название, значение, строка, колонка) для заданного файла.
 
-semantic error: type mismatch: cannot initialize 'x' of type 'int' with value of type 'bool'
-  --> program.src:3:5
-  | in function 'main'
-  = expected: int
-  = found: bool
+### `parse` (Синтаксический анализ)
+`compiler parse --input <file> [--output <file>] [--format text|dot|json] [--verbose]`
+Проверяет синтаксис и строит AST. 
+- `--format dot` — сгенерировать граф в формате Graphviz.
+- `--format json` — вывод AST в виде JSON.
+- `--verbose` — вывод статистики восстановления после ошибок.
 
-semantic error: argument count mismatch: function 'add' expects 2 argument(s), got 1
-  --> program.src:7:13
-  | in function 'main'
-  = expected: 2 arguments
-  = found: 1 arguments
-  = note: function signature: add(int, int) -> int
-```
+### `check` (Семантический анализ)
+`compiler check --input <file> [--output <file>] [--verbose] [--show-types]`
+Проверяет типы и переменные без генерации кода. 
+- `--show-types` — выводит дерево AST, где к каждому узлу прикреплен его вычисленный тип.
 
-### Опции
+### `symbols` (Таблица символов)
+`compiler symbols --input <file> [--format text|json] [--output <file>]`
+Выводит структуру областей видимости (Scope) и таблицу всех переменных и функций с их типами.
 
-| Команда | Описание |
-|---------|----------|
-| `lex` | Лексический анализ |
-| `parse` | Синтаксический анализ |
-| `check` | Семантический анализ |
-| `symbols` | Вывод таблицы символов |
-| `ir` | Генерация промежуточного представления (IR) |
-| `compile` | Компиляция в x86-64 NASM-ассемблер |
+### `ir` (Генерация IR)
+`compiler ir --input <file> [--output <file>] [--format text|dot|json] [--stats] [--optimize] [--inline]`
+Сгенерировать промежуточное представление. 
+- `--stats` — вывести сводку по использованию инструкций IR.
 
-| Флаг | Описание |
-|------|----------|
-| `--input <file>` | Входной файл |
-| `--output <file>` | Выходной файл (stdout по умолчанию) |
-| `--format text\|dot\|json` | Формат вывода |
-| `--verbose` | Подробный вывод |
-| `--show-types` | Показать типы в AST (для `check`) |
-| `--stats` | Показать статистику (для `ir`) |
-| `--optimize` | Включить Peephole оптимизацию IR (для `ir`, `compile`) |
-| `--regalloc lsra\|stack` | Стратегия распределения регистров (для `compile`) |
-| `--x86-peephole` | Включить x86 оконную оптимизацию (для `compile`) |
+---
 
-## Тесты
+## Команды сборки (Makefile)
 
-Запуск тестов через CTest:
+Проект использует `CMake` внутри `Makefile` для удобства. 
 
-```bash
-# Для Linux / macOS:
-cd build
-ctest -V
+### Базовые команды
+* `make compiler` или `make build` — сборка исполняемого файла компилятора в папку `build/compiler`.
+* `make clean` — удаление всех сгенерированных бинарников, директории `build` и временных `.asm`/`.o` файлов.
+* `make demo` — полный цикл компиляции и запуска демонстрационной программы `demo/showcase.src`. Запускает компилятор с максимальными оптимизациями (`--optimize --inline`), передает `nasm` и `gcc`, и сразу выполняет бинарник.
 
-# Для Windows:
-cd build
-ctest -C Debug -V
-```
+### Тестирование
+В проекте настроен глубокий конвейер тестирования:
+* `make test` — запустить набор всех стандартных CMake (Ctest) тестов.
+* `make unit-test` — запустить модульные тесты, написанные на фреймворке **Catch2** (лексер, парсер).
+* `make integration-test` — End-to-End тесты компиляции на тестовых файлах.
+* `make diff-test` — Differential Testing: сравнивает вывод программ, скомпилированных `MiniCompiler`, с выводом программ, скомпилированных `gcc`.
+* `make fuzz-test` — Fuzzing-тесты (передача мусора на вход для проверки устойчивости к падениям).
+* `make property-test` — Property-Based тестирование.
+* `make mutation-test` — Мутационное тестирование компилятора.
+* `make test-all` — Запустить абсолютно все виды тестов.
 
-### Семантические тесты
+### Анализ и релиз
+* `make bench` — Запуск тестов производительности (компиляция с оптимизациями и без, замер `time`).
+* `make profile` — Запуск `perf stat` для снятия статистики производительности компилятора (кэш-промахи, ветвления).
+* `make release` — Статическая (STATIC_BUILD=ON) сборка компилятора с профилем `Release` (максимально быстрый сам компилятор).
+* `make package` — Подготовка папки `dist/` для переноса проекта на другой ПК (копирует компилятор, рантайм-файлы и демо в одну изолированную папку).
 
-```
-tests/semantic/valid/          — программы без ошибок
-  type_compatibility/          — совместимость типов
-  nested_scopes/               — вложенные области видимости
-  complex_programs/            — сложные программы
+---
 
-tests/semantic/invalid/        — программы с ожидаемыми ошибками
-  undeclared_variable/         — необъявленные переменные
-  type_mismatch/               — несовпадение типов
-  duplicate_declaration/       — дублирование объявлений
-  argument_errors/             — ошибки аргументов функций
-  scope_errors/                — ошибки областей видимости
-```
-
-### Тесты IR (Sprint 4)
-
-```
-tests/ir/generation/           — тесты генерации (golden-tests)
-  expressions/                 — выражения
-  control_flow/                — if, loops
-  functions/                   — функции
-  integration/                 — полные программы
-tests/ir/validation/           — валидационные проверки структуры IR
-```
-
-### Тесты кодогенерации (Sprint 5)
-
-```
-tests/codegen/valid/             — тесты генерации ассемблера
-  arithmetic/                    — арифметические операции
-  control_flow/                  — if-else, while
-  function_calls/                — вызовы функций, рекурсия
-  integration/                   — комплексные программы
-tests/codegen/scripts/           — скрипт end-to-end тестирования (Linux)
-```
-
-#### End-to-end тестирование (Linux)
-
-```bash
-# Запуск полного пайплайна: source → asm → nasm → ld → exec
-bash tests/codegen/scripts/test_codegen.sh ./build/compiler
-```
-
-## Спецификация
-
-- Лексика: `docs/language_spec.md`
-- Грамматика: `docs/grammar.md`
+## Структура проекта
+Исходный код строго разделен на слои:
+* `src/lexer/` — `scanner.cpp`, `scanner.h`, `token.h`. 
+* `src/parser/` — `parser.cpp`, `ast.h`, `symbol_table.cpp`, `ast_printer.h`.
+* `src/semantic/` — `analyzer.cpp`, `analyzer.h`, `errors.h`.
+* `src/ir/` — `ir_generator.cpp` (AST -> IR), `optimizer.cpp` (Peephole, Chain, DCE), `optimization_passes.cpp` (Inlining), `ir_instructions.cpp`.
+* `src/codegen/` — `x86_generator.cpp` (Транслятор в ассемблер), `register_allocator.cpp` (Управление стеком кадров).
+* `src/preprocessor/` — `preprocessor.cpp` (Обработка исходного файла).
+* `src/main.cpp` — CLI утилита, обрабатывающая флаги и связывающая компоненты.
+* `demo/` — папка с программами на языке MiniCompiler (`showcase.src` содержит проверку арифметики, Фибоначчи, алгоритма Quicksort и работы с массивами).
+* `tests/` — папка со скриптами тестов.

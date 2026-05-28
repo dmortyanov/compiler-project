@@ -5,13 +5,21 @@ RUN apt-get update && apt-get install -y \
     cmake \
     nasm \
     gcc \
+    git \
+    linux-tools-generic \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY . .
 
-RUN mkdir -p build && cd build && cmake .. && make
+# Сборка (release, статическая линковка)
+RUN mkdir -p build && cd build && \
+    cmake .. -DSTATIC_BUILD=ON -DCMAKE_BUILD_TYPE=Release && \
+    make compiler
 
 ENV PATH="/app/build:${PATH}"
+
+# Проверка: компилятор запускается
+RUN ./build/compiler lex --input demo/showcase.src > /dev/null
 
 CMD ["/bin/bash"]

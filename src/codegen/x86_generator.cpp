@@ -19,7 +19,36 @@ const std::set<std::string>& X86Generator::runtime_functions() {
 // Вспомогательные методы вывода
 // ---------------------------------------------------------------
 void X86Generator::emit(const std::string& line) {
-    out_ << line << "\n";
+    std::string l = line;
+    if (emit_dwarf_) {
+        size_t pos = l.find(';');
+        if (pos != std::string::npos) {
+            l[pos] = '#';
+        }
+        size_t rel_pos = l.find("rel ");
+        if (rel_pos != std::string::npos) {
+            l.replace(rel_pos, 4, "rip + ");
+        }
+        auto is_block_label = [](const std::string& s, size_t dot_pos) {
+            if (dot_pos + 1 >= s.length()) return false;
+            std::string sub = s.substr(dot_pos, 5);
+            if (sub == ".glob" || sub == ".sect" || sub == ".inte" || sub == ".text" || 
+                sub == ".file" || sub == ".loc " || sub == ".asci" || sub == ".exte" || sub == ".note") return false;
+            if (sub == ".Lstr" || sub == ".Laux") return false;
+            return true;
+        };
+        size_t dot_pos = l.find('.');
+        while (dot_pos != std::string::npos) {
+            if ((dot_pos == 0 || l[dot_pos - 1] == ' ' || l[dot_pos - 1] == '\t') && is_block_label(l, dot_pos)) {
+                l.replace(dot_pos, 1, ".L_" + cur_func_name_ + "_");
+                dot_pos += cur_func_name_.length() + 3;
+            } else {
+                dot_pos++;
+            }
+            dot_pos = l.find('.', dot_pos);
+        }
+    }
+    out_ << l << "\n";
     regalloc_.total_instructions++;
 }
 
@@ -36,7 +65,7 @@ std::string X86Generator::intern_string(const std::string& value) {
     for (const auto& pair : string_literals_) {
         if (pair.second == value) return pair.first;
     }
-    std::string label = ".Lstr_" + std::to_string(string_counter_++);
+    std::string label = "Lstr_" + std::to_string(string_counter_++);
     string_literals_.push_back({label, value});
     return label;
 }
@@ -53,26 +82,45 @@ std::string X86Generator::generate(const IRProgram& program) {
     extern_symbols_.clear();
     defined_functions_.clear();
     regalloc_.reset();
+    last_emitted_line_ = 0;
 
-    // Собираем имена определённых функций
+    // Предварительно собираем список определенных в файле функций
     for (const auto& func : program.functions) {
-        defined_functions_.insert(func.name);
+        if (!func.blocks.empty()) {
+            defined_functions_.insert(func.name);
+        }
     }
 
     // ---- Заголовок ----
-    emit("; ============================================================");
-    emit("; MiniCompiler — x86-64 NASM output");
-    emit("; Target: Linux x86-64, System V AMD64 ABI");
-    emit("; ============================================================");
+    if (emit_dwarf_) {
+        // GAS-синтаксис с DWARF debug info
+        emit("# ============================================================");
+        emit("# MiniCompiler — x86-64 GAS output (Intel syntax, DWARF debug)");
+        emit("# Target: Linux x86-64, System V AMD64 ABI");
+        emit("# ============================================================");
+        emit_blank();
+        emit(".intel_syntax noprefix");
+        // DWARF .file директива
+        std::string fname = source_filename_.empty() ? "input.src" : source_filename_;
+        emit(".file 1 \"" + fname + "\"");
+        emit_blank();
+        emit(".text");
+    } else {
+        // NASM-синтаксис (как раньше)
+        emit("; ============================================================");
+        emit("; MiniCompiler — x86-64 NASM output");
+        emit("; Target: Linux x86-64, System V AMD64 ABI");
+        emit("; ============================================================");
+        emit_blank();
+        emit("section .text");
+    }
     emit_blank();
 
-    // ---- Секция .text ----
-    emit("section .text");
-    emit_blank();
-
-    // Все пользовательские функции — global (для линковки)
+    // ---- Глобальные символы ----
     for (const auto& func : program.functions) {
-        emit("global " + func.name);
+        if (!func.blocks.empty()) {
+            emit((emit_dwarf_ ? ".globl " : "global ") + func.name);
+        }
     }
     emit_blank();
 
@@ -84,12 +132,28 @@ std::string X86Generator::generate(const IRProgram& program) {
     // ---- Секция .data / .rodata (строковые литералы) ----
     if (!string_literals_.empty()) {
         emit_blank();
-        emit("section .rodata");
-        for (const auto& [label, value] : string_literals_) {
-            // NASM: label db "text", 0
-            emit(label + ":");
-            emit("    db `" + value + "`, 0");
+        emit(emit_dwarf_ ? ".section .rodata" : "section .rodata");
+        for (const auto& pair : string_literals_) {
+            std::string escaped = pair.second;
+            // Всегда экранируем реальные переносы строк в \n
+            size_t pos = 0;
+            while ((pos = escaped.find('\n', pos)) != std::string::npos) {
+                escaped.replace(pos, 1, "\\n");
+                pos += 2;
+            }
+            emit(pair.first + ":");
+            if (emit_dwarf_) {
+                emit("    .asciz \"" + escaped + "\"");
+            } else {
+                emit("    db `" + escaped + "`, 0");
+            }
         }
+    }
+
+    // DWARF: метка неисполняемого стека
+    if (emit_dwarf_) {
+        emit_blank();
+        emit(".section .note.GNU-stack,\"\",@progbits");
     }
 
     // ---- extern-объявления (вставляем в начало) ----
@@ -98,7 +162,7 @@ std::string X86Generator::generate(const IRProgram& program) {
     // Собираем extern для нерезолвленных символов
     for (const auto& sym : extern_symbols_) {
         if (defined_functions_.find(sym) == defined_functions_.end()) {
-            result << "extern " << sym << "\n";
+            result << (emit_dwarf_ ? ".extern " : "extern ") << sym << "\n";
         }
     }
     if (!extern_symbols_.empty()) {
@@ -139,6 +203,8 @@ std::string X86Generator::statistics() const {
 //       ...
 // ---------------------------------------------------------------
 void X86Generator::gen_function(const IRFunction& func) {
+    if (func.blocks.empty()) return; // extern function
+
     cur_func_name_ = func.name;
     pending_params_.clear();
 
@@ -147,6 +213,10 @@ void X86Generator::gen_function(const IRFunction& func) {
 
     // Запустить аллокацию регистров (LSRA или noop для StackOnly)
     regalloc_.allocate(func, frame_);
+
+    // Установить смещение стека для сохраненных регистров
+    int shift = static_cast<int>(regalloc_.used_callee_saved_64().size()) * 8;
+    frame_.set_callee_saved_shift(shift);
 
     // Построить карту PHI-разрешений
     build_phi_map(func);
@@ -220,8 +290,8 @@ void X86Generator::gen_prologue(const IRFunction& /* func */) {
         // Если параметр назначен в регистр LSRA, кладём туда напрямую
         auto alloc = regalloc_.get_allocation(pnames[i]);
         if (alloc.in_register) {
-            emit("    mov " + alloc.phys_reg + ", " + x86abi::ARG_REGS_32[i]
-                 + "    ; param " + pnames[i] + " -> " + alloc.phys_reg);
+            emit("    mov " + alloc.phys_reg_64 + ", " + x86abi::ARG_REGS_64[i]
+                 + "    ; param " + pnames[i] + " -> " + alloc.phys_reg_64);
         } else {
             emit("    mov " + frame_.slot_ref_64(pnames[i]) + ", " + x86abi::ARG_REGS_64[i]
                  + "    ; param " + pnames[i]);
@@ -251,9 +321,14 @@ void X86Generator::gen_block(const BasicBlock& block, const IRFunction& /* func 
         if (instr.opcode == IROpcode::LABEL) continue;   // метки уже обработаны
         if (instr.opcode == IROpcode::PHI)   continue;   // PHI разрешаются в предшественниках
 
-        // Комментарий с номером строки исходника
+        // DWARF: .loc директива для отладки
         if (instr.source_line > 0) {
-            std::string cmt = "    ; line " + std::to_string(instr.source_line);
+            if (emit_dwarf_ && instr.source_line != last_emitted_line_) {
+                emit("    .loc 1 " + std::to_string(instr.source_line) + " 0");
+                last_emitted_line_ = instr.source_line;
+            }
+            std::string cmt_prefix = emit_dwarf_ ? "    # line " : "    ; line ";
+            std::string cmt = cmt_prefix + std::to_string(instr.source_line);
             if (!instr.comment.empty()) cmt += ": " + instr.comment;
             emit(cmt);
         }
@@ -322,9 +397,8 @@ void X86Generator::gen_instruction(const IRInstruction& instr) {
 
         case IROpcode::ALLOCA: {
             int buf_offset = frame_.get_slot_offset(instr.dest.name + "_buf");
-            int ptr_offset = frame_.get_slot_offset(instr.dest.name);
             emit("    lea rax, [rbp" + std::to_string(buf_offset) + "]");
-            emit("    mov qword [rbp" + std::to_string(ptr_offset) + "], rax");
+            store_to_dest(instr.dest, "eax");
             break;
         }
 
@@ -368,13 +442,14 @@ void X86Generator::load_operand(const Operand& op,
             // LSRA: проверяем, есть ли temp в регистре
             auto alloc = regalloc_.get_allocation(op.name);
             if (alloc.in_register) {
-                // Temp уже в физическом регистре
-                if (alloc.phys_reg != std::string(reg32)) {
-                    emit("    mov " + std::string(reg32) + ", " + alloc.phys_reg);
+                // Temp уже в физическом регистре (64-bit)
+                if (alloc.phys_reg_64 != std::string(reg64)) {
+                    emit("    mov " + std::string(reg64) + ", " + alloc.phys_reg_64);
                 }
                 // Если совпадают — mov не нужен
             } else {
-                emit("    mov " + std::string(reg32) + ", " + frame_.slot_ref_32(op.name));
+                // Загружаем 64-bit, чтобы не обрезать указатели
+                emit("    mov " + std::string(reg64) + ", " + frame_.slot_ref_64(op.name));
                 regalloc_.loads++;
             }
             break;
@@ -383,15 +458,16 @@ void X86Generator::load_operand(const Operand& op,
         case OperandKind::Variable: {
             auto alloc = regalloc_.get_allocation(op.name);
             if (alloc.in_register) {
-                if (alloc.phys_reg != std::string(reg32)) {
-                    emit("    mov " + std::string(reg32) + ", " + alloc.phys_reg);
+                if (alloc.phys_reg_64 != std::string(reg64)) {
+                    emit("    mov " + std::string(reg64) + ", " + alloc.phys_reg_64);
                 }
             } else if (frame_.has_slot(op.name)) {
-                emit("    mov " + std::string(reg32) + ", " + frame_.slot_ref_32(op.name));
+                // Загружаем 64-bit, чтобы не обрезать указатели
+                emit("    mov " + std::string(reg64) + ", " + frame_.slot_ref_64(op.name));
                 regalloc_.loads++;
             } else {
                 emit("    ; WARNING: unknown variable " + op.name);
-                emit("    xor " + std::string(reg32) + ", " + std::string(reg32));
+                emit("    xor " + std::string(reg64) + ", " + std::string(reg64));
             }
             break;
         }
@@ -433,8 +509,9 @@ void X86Generator::load_operand_64(const Operand& op, const char* reg64) {
     if (op.is_temp() || op.kind == OperandKind::Variable) {
         auto alloc = regalloc_.get_allocation(op.name);
         if (alloc.in_register) {
-            // Pointer is stored in a 32-bit register (fallback logic).
-            emit("    movsxd " + std::string(reg64) + ", " + alloc.phys_reg);
+            if (alloc.phys_reg_64 != std::string(reg64)) {
+                emit("    mov " + std::string(reg64) + ", " + alloc.phys_reg_64);
+            }
         } else {
             emit("    mov " + std::string(reg64) + ", " + frame_.slot_ref_64(op.name));
             regalloc_.loads++;
@@ -449,16 +526,21 @@ void X86Generator::load_operand_64(const Operand& op, const char* reg64) {
 // store_to_dest — сохранить значение из регистра в слот dest
 // ---------------------------------------------------------------
 void X86Generator::store_to_dest(const Operand& dest, const char* reg32) {
+    std::string reg64 = "rax";
+    if (std::string(reg32) == "ecx") reg64 = "rcx";
+    if (std::string(reg32) == "edx") reg64 = "rdx";
+
     if (dest.is_temp() || dest.kind == OperandKind::Variable) {
         auto alloc = regalloc_.get_allocation(dest.name);
         if (alloc.in_register) {
-            // Записываем в физический регистр
-            if (alloc.phys_reg != std::string(reg32)) {
-                emit("    mov " + alloc.phys_reg + ", " + std::string(reg32));
+            // Записываем в физический регистр (64-bit)
+            if (alloc.phys_reg_64 != reg64) {
+                emit("    mov " + alloc.phys_reg_64 + ", " + reg64);
             }
             // Если совпадают — mov не нужен
         } else if (frame_.has_slot(dest.name)) {
-            emit("    mov " + frame_.slot_ref_32(dest.name) + ", " + std::string(reg32));
+            // Записываем 64-bit, чтобы не обрезать указатели
+            emit("    mov " + frame_.slot_ref_64(dest.name) + ", " + reg64);
             regalloc_.stores++;
         }
     }
@@ -701,6 +783,9 @@ void X86Generator::gen_call(const IRInstruction& instr) {
         }
     }
 
+    // System V AMD64 ABI: для variadic функций (как printf) регистр AL должен содержать 
+    // количество используемых векторных (XMM) регистров. Так как мы не используем float, AL = 0.
+    emit("    xor eax, eax");
     emit("    call " + func_name);
 
     // Очистка стека после stack-аргументов
@@ -913,7 +998,7 @@ void X86Generator::build_phi_map(const IRFunction& func) {
                 if (val.is_none() || pred.is_none()) continue;
 
                 PhiMove pm;
-                pm.dest_name = instr.dest.name;
+                pm.dest      = instr.dest;
                 pm.source    = val;
 
                 phi_moves_[block.label][pred.name].push_back(pm);
@@ -944,11 +1029,7 @@ void X86Generator::emit_phi_moves(const std::string& from_block,
     emit("    ; PHI resolution: " + from_block + " -> " + to_block);
     for (const auto& pm : moves) {
         load_operand(pm.source, "eax", "rax");
-        // Записываем в слот PHI-destination
-        if (frame_.has_slot(pm.dest_name)) {
-            emit("    mov " + frame_.slot_ref(pm.dest_name) + ", eax");
-            regalloc_.stores++;
-        }
+        store_to_dest(pm.dest, "eax");
     }
 }
 

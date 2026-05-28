@@ -1,5 +1,6 @@
 section .text
     global _start
+    extern main
     global print_int
     global print_string
     global read_int

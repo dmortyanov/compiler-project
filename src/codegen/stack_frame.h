@@ -48,6 +48,9 @@ public:
     /// Общий размер фрейма (уже выровнен до 16).
     int frame_size() const { return frame_size_; }
 
+    /// Установить смещение для callee-saved регистров.
+    void set_callee_saved_shift(int shift) { callee_saved_shift_ = shift; }
+
     /// Количество параметров функции.
     int param_count() const { return param_count_; }
 
@@ -60,6 +63,7 @@ private:
     int next_offset_ = 0;    // текущий конец занятого пространства
     int param_count_ = 0;
     std::vector<std::string> param_names_;
+    int callee_saved_shift_ = 0;
 
     /// Выделить новый слот. Возвращает смещение от rbp.
     int alloc_slot(const std::string& name, int size = 4);

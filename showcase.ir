@@ -1,0 +1,390 @@
+function printf: int (string format, ... ...)
+  entry:
+    RETURN 0
+
+function factorial: int (int n)
+  entry:
+    t0 = MOVE [n]
+    t1 = CMP_LE [n], 1
+    JUMP_IF t1, L_then_0
+    JUMP L_endif_1
+
+  L_then_0:
+    RETURN 1
+
+  L_endif_1:
+    t2 = SUB t0, 1
+    PARAM 0, t2
+    t3 = CALL factorial, 1
+    t4 = MUL t0, t3
+    RETURN t4
+
+function swap: void (int arr, int i, int j)
+  entry:
+    RETURN
+
+function partition: int (int arr, int low, int high)
+  entry:
+    t0 = MOVE [arr]
+    t2 = MOVE [high]
+    t3 = LOAD_ELEM [arr][[high]]
+    t4 = MOVE t3    # int pivot
+    t5 = SUB [low], 1
+    t6 = MOVE t5    # int i
+    t7 = MOVE [low]    # int j
+    JUMP L_for_0
+
+  L_for_0:
+    t8 = PHI (t6, entry), (t16, L_forupd_2)
+    t9 = PHI (t7, entry), (t18, L_forupd_2)
+    t10 = CMP_LT t9, t2
+    JUMP_IF t10, L_forbody_1
+    JUMP L_endfor_3
+
+  L_forbody_1:
+    t11 = LOAD_ELEM t0[t9]
+    t12 = CMP_LE t11, t4
+    JUMP_IF t12, L_then_4
+    JUMP L_endif_5
+
+  L_then_4:
+    t13 = ADD t8, 1
+    t14 = MOVE t13
+    PARAM 0, t0
+    PARAM 1, t13
+    PARAM 2, t9
+    t15 = CALL swap, 3
+    JUMP L_endif_5
+
+  L_endif_5:
+    t16 = PHI (t14, L_then_4), (t8, L_forbody_1)
+    JUMP L_forupd_2
+
+  L_forupd_2:
+    t17 = ADD t9, 1
+    t18 = MOVE t17
+    JUMP L_for_0
+
+  L_endfor_3:
+    t19 = ADD t16, 1
+    PARAM 0, t0
+    PARAM 1, t19
+    PARAM 2, t2
+    t20 = CALL swap, 3
+    t21 = ADD t16, 1
+    RETURN t21
+
+function quicksort: void (int arr, int low, int high)
+  entry:
+    t0 = MOVE [arr]
+    t1 = MOVE [low]
+    t2 = MOVE [high]
+    t3 = CMP_LT [low], [high]
+    JUMP_IF t3, L_then_0
+    JUMP L_endif_1
+
+  L_then_0:
+    PARAM 0, t0
+    PARAM 1, t1
+    PARAM 2, t2
+    t4 = CALL partition, 3
+    t6 = SUB t4, 1
+    PARAM 0, t0
+    PARAM 1, t1
+    PARAM 2, t6
+    t7 = CALL quicksort, 3
+    t8 = ADD t4, 1
+    PARAM 0, t0
+    PARAM 1, t8
+    PARAM 2, t2
+    t9 = CALL quicksort, 3
+    JUMP L_endif_1
+
+  L_endif_1:
+    RETURN
+
+function print_array: void (int arr, int size)
+  entry:
+    t0 = MOVE [arr]
+    t1 = MOVE [size]
+    t2 = MOVE 0    # int i
+    JUMP L_for_0
+
+  L_for_0:
+    t3 = PHI (t2, entry), (t8, L_forupd_2)
+    t4 = CMP_LT t3, t1
+    JUMP_IF t4, L_forbody_1
+    JUMP L_endfor_3
+
+  L_forbody_1:
+    t5 = LOAD_ELEM t0[t3]
+    PARAM 0, "%d "
+    PARAM 1, t5
+    t6 = CALL printf, 2
+    JUMP L_forupd_2
+
+  L_forupd_2:
+    t7 = ADD t3, 1
+    t8 = MOVE t7
+    JUMP L_for_0
+
+  L_endfor_3:
+    PARAM 0, "
+"
+    t9 = CALL printf, 1
+    RETURN
+
+function compute_optimized: int ()
+  entry:
+    t3 = MOVE 60    # int y
+    JUMP_IF 1, L_then_0
+    JUMP L_else_1
+
+  L_then_0:
+    RETURN t3
+
+  L_else_1:
+    RETURN 0
+
+  L_endif_2:
+    RETURN 0
+
+function fibonacci: int (int n)
+  entry:
+    t0 = MOVE [n]
+    t1 = CMP_LE [n], 0
+    JUMP_IF t1, L_then_0
+    JUMP L_endif_1
+
+  L_then_0:
+    RETURN 0
+
+  L_endif_1:
+    t2 = CMP_EQ t0, 1
+    JUMP_IF t2, L_then_2
+    JUMP L_endif_3
+
+  L_then_2:
+    RETURN 1
+
+  L_endif_3:
+    t3 = MOVE 0    # int a
+    t4 = MOVE 1    # int b
+    t5 = MOVE 2    # int i
+    JUMP L_for_4
+
+  L_for_4:
+    t6 = PHI (t3, L_endif_3), (t12, L_forupd_6)
+    t7 = PHI (t4, L_endif_3), (t13, L_forupd_6)
+    t8 = PHI (t5, L_endif_3), (t15, L_forupd_6)
+    t9 = CMP_LE t8, t0
+    JUMP_IF t9, L_forbody_5
+    JUMP L_endfor_7
+
+  L_forbody_5:
+    t10 = ADD t6, t7
+    t12 = MOVE t7
+    t13 = MOVE t10
+    JUMP L_forupd_6
+
+  L_forupd_6:
+    t14 = ADD t8, 1
+    t15 = MOVE t14
+    JUMP L_for_4
+
+  L_endfor_7:
+    RETURN t13
+
+function is_prime: bool (int n)
+  entry:
+    t0 = MOVE [n]
+    t1 = CMP_LT [n], 2
+    JUMP_IF t1, L_then_0
+    JUMP L_endif_1
+
+  L_then_0:
+    RETURN false
+
+  L_endif_1:
+    t2 = MOVE 2    # int i
+    JUMP L_for_2
+
+  L_for_2:
+    t3 = PHI (t2, L_endif_1), (t9, L_forupd_4)
+    t4 = MUL t3, t3
+    t5 = CMP_LE t4, t0
+    JUMP_IF t5, L_forbody_3
+    JUMP L_endfor_5
+
+  L_forbody_3:
+    t6 = MOD t0, t3
+    t7 = CMP_EQ t6, 0
+    JUMP_IF t7, L_then_6
+    JUMP L_forupd_4
+
+  L_then_6:
+    RETURN false
+
+  L_endif_7:
+    JUMP L_forupd_4
+
+  L_forupd_4:
+    t8 = ADD t3, 1
+    t9 = MOVE t8
+    JUMP L_for_2
+
+  L_endfor_5:
+    RETURN true
+
+function main: int ()
+  entry:
+    PARAM 0, "=== MiniCompiler Showcase ===
+
+"
+    t0 = CALL printf, 1
+    t1 = MOVE 42    # int x
+    t2 = MOVE true    # bool flag
+    PARAM 0, "1. Basics: x = %d, flag = %d
+"
+    PARAM 1, t1
+    PARAM 2, t2
+    t3 = CALL printf, 3
+    PARAM 0, 5
+    t4 = CALL factorial, 1
+    PARAM 0, "2. Factorial(5) = %d
+"
+    PARAM 1, t4
+    t5 = CALL printf, 2
+    PARAM 0, 10
+    t6 = CALL fibonacci, 1
+    PARAM 0, "3. Fibonacci(10) = %d
+"
+    PARAM 1, t6
+    t7 = CALL printf, 2
+    t8 = ALLOCA 32
+    STORE_ELEM t8[0], 10
+    STORE_ELEM t8[1], 7
+    STORE_ELEM t8[2], 8
+    STORE_ELEM t8[3], 9
+    STORE_ELEM t8[4], 1
+    STORE_ELEM t8[5], 5
+    STORE_ELEM t8[6], 3
+    STORE_ELEM t8[7], 6
+    PARAM 0, "4. Before sort: "
+    t10 = CALL printf, 1
+    PARAM 0, t8
+    PARAM 1, 8
+    t11 = CALL print_array, 2
+    PARAM 0, t8
+    PARAM 1, 0
+    PARAM 2, 7
+    t12 = CALL quicksort, 3
+    PARAM 0, "   After sort:  "
+    t13 = CALL printf, 1
+    PARAM 0, t8
+    PARAM 1, 8
+    t14 = CALL print_array, 2
+    t15 = CALL compute_optimized, 0
+    PARAM 0, "5. Optimized computation = %d
+"
+    PARAM 1, t15
+    t17 = CALL printf, 2
+    PARAM 0, "6. Primes up to 20: "
+    t18 = CALL printf, 1
+    t19 = MOVE 2    # int i
+    JUMP L_for_0
+
+  L_for_0:
+    t20 = PHI (t19, entry), (t25, L_forupd_2)
+    t21 = CMP_LE t20, 20
+    JUMP_IF t21, L_forbody_1
+    JUMP L_endfor_3
+
+  L_forbody_1:
+    PARAM 0, t20
+    t22 = CALL is_prime, 1
+    JUMP_IF t22, L_then_4
+    JUMP L_forupd_2
+
+  L_then_4:
+    PARAM 0, "%d "
+    PARAM 1, t20
+    t23 = CALL printf, 2
+    JUMP L_forupd_2
+
+  L_endif_5:
+    JUMP L_forupd_2
+
+  L_forupd_2:
+    t24 = ADD t20, 1
+    t25 = MOVE t24
+    JUMP L_for_0
+
+  L_endfor_3:
+    PARAM 0, "
+"
+    t26 = CALL printf, 1
+    t27 = MOVE 0    # int sum
+    t28 = MOVE 1    # int i
+    JUMP L_for_6
+
+  L_for_6:
+    t29 = PHI (t28, L_endfor_3), (t38, L_forupd_8)
+    t30 = PHI (t27, L_endfor_3), (t36, L_forupd_8)
+    t31 = CMP_LE t29, 10
+    JUMP_IF t31, L_forbody_7
+    JUMP L_endfor_9
+
+  L_forbody_7:
+    t32 = MOD t29, 2
+    t33 = CMP_EQ t32, 0
+    JUMP_IF t33, L_then_10
+    JUMP L_endif_11
+
+  L_then_10:
+    t34 = ADD t30, t29
+    t35 = MOVE t34
+    JUMP L_endif_11
+
+  L_endif_11:
+    t36 = PHI (t35, L_then_10), (t30, L_forbody_7)
+    JUMP L_forupd_8
+
+  L_forupd_8:
+    t37 = ADD t29, 1
+    t38 = MOVE t37
+    JUMP L_for_6
+
+  L_endfor_9:
+    PARAM 0, "7. Sum of evens 1..10 = %d
+"
+    PARAM 1, t36
+    t39 = CALL printf, 2
+    t40 = CMP_GT t1, 0
+    JUMP_IF t40, L_and_rhs_14
+    JUMP L_and_end_15
+
+  L_and_rhs_14:
+    t41 = CMP_LT t1, 100
+    JUMP L_and_end_15
+
+  L_and_end_15:
+    t42 = PHI (false, L_endfor_9), (t41, L_and_rhs_14)
+    JUMP_IF t42, L_or_end_13
+    JUMP L_or_end_13
+
+  L_or_rhs_12:
+    JUMP L_or_end_13
+
+  L_or_end_13:
+    t43 = PHI (true, L_and_end_15), (t2, L_or_rhs_12)
+    PARAM 0, "8. Logic check = %d
+"
+    PARAM 1, t43
+    t45 = CALL printf, 2
+    PARAM 0, "
+=== All features demonstrated! ===
+"
+    t46 = CALL printf, 1
+    RETURN 0
+

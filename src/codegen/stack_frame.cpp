@@ -35,6 +35,7 @@ void StackFrame::build(const IRFunction& func) {
     slots_.clear();
     next_offset_ = 0;
     param_names_.clear();
+    callee_saved_shift_ = 0;
 
     // 1. Параметры
     for (const auto& param : func.params) {
@@ -82,7 +83,8 @@ void StackFrame::build(const IRFunction& func) {
 std::string StackFrame::slot_ref_32(const std::string& name) const {
     auto it = slots_.find(name);
     if (it == slots_.end()) return "dword [UNKNOWN_SLOT_" + name + "]";
-    return "dword [rbp" + std::to_string(it->second.offset) + "]";
+    int offset = it->second.offset - callee_saved_shift_;
+    return "dword [rbp" + std::to_string(offset) + "]";
 }
 
 // ---------------------------------------------------------------
@@ -91,13 +93,14 @@ std::string StackFrame::slot_ref_32(const std::string& name) const {
 std::string StackFrame::slot_ref_64(const std::string& name) const {
     auto it = slots_.find(name);
     if (it == slots_.end()) return "qword [UNKNOWN_SLOT_" + name + "]";
-    return "qword [rbp" + std::to_string(it->second.offset) + "]";
+    int offset = it->second.offset - callee_saved_shift_;
+    return "qword [rbp" + std::to_string(offset) + "]";
 }
 
 int StackFrame::get_slot_offset(const std::string& name) const {
     auto it = slots_.find(name);
     if (it == slots_.end()) return 0;
-    return it->second.offset;
+    return it->second.offset - callee_saved_shift_;
 }
 
 bool StackFrame::has_slot(const std::string& name) const {

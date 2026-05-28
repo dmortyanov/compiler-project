@@ -11,7 +11,7 @@
 // Sprint 7: Массивы, внешние вызовы, оптимизации
 // Sprint 8: CLI, ошибки, тесты, документация
 
-extern fn printf(string format) -> int;
+extern fn printf(string format, ...) -> int;
 
 // --- Sprint 3+5: структуры и рекурсия ---
 struct Point {

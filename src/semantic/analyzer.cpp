@@ -780,9 +780,13 @@ void SemanticAnalyzer::visit(CallExprNode& node) {
     }
 
     // Check argument count
+    bool is_varargs = (!fn_sym->params.empty() && fn_sym->params.back().type_name == "...");
     size_t expected = fn_sym->params.size();
+    size_t min_expected = is_varargs ? expected - 1 : expected;
     size_t actual = node.arguments.size();
-    if (expected != actual) {
+    bool count_ok = is_varargs ? (actual >= min_expected) : (actual == expected);
+
+    if (!count_ok) {
         std::string sig = node.callee + "(";
         for (size_t i = 0; i < fn_sym->params.size(); ++i) {
             if (i > 0) sig += ", ";
@@ -793,15 +797,16 @@ void SemanticAnalyzer::visit(CallExprNode& node) {
         error(SemanticErrorKind::ArgCountMismatch,
               node.line, node.column,
               "функция '" + node.callee + "' ожидает " +
-              std::to_string(expected) + " аргумент(ов), получено " +
+              (is_varargs ? "не менее " : "") +
+              std::to_string(min_expected) + " аргумент(ов), получено " +
               std::to_string(actual),
-              std::to_string(expected) + " аргументов",
+              std::to_string(min_expected) + " аргументов",
               std::to_string(actual) + " аргументов",
               "сигнатура функции: " + sig);
     }
 
     // Check argument types
-    size_t check_count = std::min(expected, actual);
+    size_t check_count = std::min(min_expected, actual);
     for (size_t i = 0; i < node.arguments.size(); ++i) {
         node.arguments[i]->accept(*this);
         Type* arg_type = last_expr_type_;
@@ -830,8 +835,11 @@ void SemanticAnalyzer::visit(CallExprNode& node) {
 // ---------------------------------------------------------------
 void SemanticAnalyzer::visit(AssignmentExprNode& node) {
     // Check target is a valid lvalue
-    auto* ident = dynamic_cast<IdentifierExprNode*>(node.target.get());
-    if (!ident) {
+    bool is_valid_lvalue = false;
+    if (dynamic_cast<IdentifierExprNode*>(node.target.get())) is_valid_lvalue = true;
+    else if (dynamic_cast<ArrayAccessExprNode*>(node.target.get())) is_valid_lvalue = true;
+    
+    if (!is_valid_lvalue) {
         error(SemanticErrorKind::InvalidAssignmentTarget,
               node.line, node.column,
               "левая часть присваивания не является переменной",
@@ -880,7 +888,7 @@ void SemanticAnalyzer::visit(AssignmentExprNode& node) {
     }
 
     // Mark as initialized
-    if (ident) {
+    if (auto* ident = dynamic_cast<IdentifierExprNode*>(node.target.get())) {
         Symbol* sym = sym_.lookup(ident->name);
         if (sym) sym->initialized = true;
     }

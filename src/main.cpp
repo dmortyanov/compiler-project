@@ -25,7 +25,7 @@ static void print_usage() {
     std::cout << "  compiler check    --input <file> [--output <file>] [--verbose] [--show-types]\n";
     std::cout << "  compiler symbols  --input <file> [--format text|json] [--output <file>]\n";
     std::cout << "  compiler ir       --input <file> [--output <file>] [--format text|dot|json] [--stats] [--optimize]\n";
-    std::cout << "  compiler compile  --input <file> [--output <file>] [--optimize] [--regalloc lsra|stack] [--x86-peephole]\n";
+    std::cout << "  compiler compile  --input <file> [--output <file>] [--optimize] [--regalloc lsra|stack] [--x86-peephole] [--dwarf]\n";
 }
 
 static std::string read_source(const std::string& path) {
@@ -363,7 +363,8 @@ static int cmd_compile(const std::string& input_path,
                        bool do_optimize,
                        bool do_inline,
                        RegAllocStrategy regalloc_strategy,
-                       bool x86_peephole) {
+                       bool x86_peephole,
+                       bool dwarf) {
     std::string source = read_source(input_path);
     if (source.empty()) {
         std::ifstream test(input_path);
@@ -414,6 +415,10 @@ static int cmd_compile(const std::string& input_path,
     X86Generator x86gen;
     x86gen.set_regalloc_strategy(regalloc_strategy);
     x86gen.set_peephole(x86_peephole);
+    if (dwarf) {
+        x86gen.set_dwarf(true);
+        x86gen.set_source_file(input_path);
+    }
     std::string asm_output = x86gen.generate(program);
 
     // Определяем имя выходного файла
@@ -455,6 +460,7 @@ int main(int argc, char** argv) {
     bool do_inline = false;
     std::string regalloc_str = "stack";
     bool x86_peephole = false;
+    bool dwarf = false;
 
     for (int i = 2; i < argc; ++i) {
         std::string arg = argv[i];
@@ -478,6 +484,8 @@ int main(int argc, char** argv) {
             regalloc_str = argv[++i];
         } else if (arg == "--x86-peephole") {
             x86_peephole = true;
+        } else if (arg == "--dwarf") {
+            dwarf = true;
         }
     }
 
@@ -506,7 +514,7 @@ int main(int argc, char** argv) {
         if (regalloc_str == "lsra") {
             strategy = RegAllocStrategy::LinearScan;
         }
-        return cmd_compile(input_path, output_path, do_optimize, do_inline, strategy, x86_peephole);
+        return cmd_compile(input_path, output_path, do_optimize, do_inline, strategy, x86_peephole, dwarf);
     }
 
     print_usage();

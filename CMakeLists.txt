@@ -5,6 +5,26 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Статическая сборка (для переноса на флешку)
+option(STATIC_BUILD "Build statically linked binary" OFF)
+if(STATIC_BUILD)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+endif()
+
+# Покрытие кода тестами (Code Coverage)
+option(ENABLE_COVERAGE "Enable coverage reporting" OFF)
+if(ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        add_compile_options(--coverage)
+        if(CMAKE_VERSION VERSION_LESS "3.13")
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
+        else()
+            add_link_options(--coverage)
+        endif()
+    endif()
+endif()
+
 if(MSVC)
     add_compile_options(/W4)
 else()
@@ -130,3 +150,28 @@ add_test(
     COMMAND codegen_test_runner
         "${CMAKE_CURRENT_SOURCE_DIR}/tests/codegen/valid"
 )
+
+# ================================================================
+# Catch2 Unit Tests
+# ================================================================
+include(FetchContent)
+FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG        v3.5.2
+)
+FetchContent_MakeAvailable(Catch2)
+
+add_executable(unit_tests
+    tests/unit/test_lexer.cpp
+    tests/unit/test_parser.cpp
+    tests/unit/test_semantic.cpp
+    tests/unit/test_ir.cpp
+    tests/unit/test_codegen.cpp
+    tests/unit/test_optimizer.cpp
+)
+target_link_libraries(unit_tests PRIVATE compiler_core Catch2::Catch2WithMain)
+
+include(CTest)
+include(Catch)
+catch_discover_tests(unit_tests)

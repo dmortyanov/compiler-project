@@ -48,3 +48,12 @@ ast.json
 ast.png
 ast.txt
 
+# Deployment and cheating
+cheat_sheet.md
+dist/
+
+# Assembly and linked executables
+*.asm
+*.s
+demo/showcase
+examples/factorial

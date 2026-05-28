@@ -118,7 +118,7 @@ bool Parser::isTypeName() const {
 
 std::string Parser::parseTypeName() {
     if (match({TokenType::KW_INT, TokenType::KW_FLOAT, TokenType::KW_BOOL,
-               TokenType::KW_VOID})) {
+               TokenType::KW_VOID, TokenType::IDENTIFIER})) {
         return previous().lexeme;
     }
     report_error(peek(), "Ожидается имя типа");

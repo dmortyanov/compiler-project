@@ -1,0 +1,26 @@
+# Makefile для использования на защитном ПК (Ubuntu)
+# Предполагается, что в текущей папке есть:
+#   compiler          — статически слинкованный бинарник
+#   demo/             — демо-файлы (.src, run_demo.sh)
+#   runtime.asm       — runtime-библиотека
+
+.PHONY: demo check setup
+
+# Проверка зависимостей
+setup:
+	@echo "Проверка зависимостей..."
+	@which nasm > /dev/null 2>&1 || (echo "ERROR: nasm не найден. Установите: sudo apt install nasm" && exit 1)
+	@which gcc > /dev/null 2>&1 || (echo "ERROR: gcc не найден. Установите: sudo apt install gcc" && exit 1)
+	@echo "Все зависимости в наличии."
+
+# Запуск полной демонстрации
+demo: setup
+	@chmod +x compiler 2>/dev/null || true
+	@chmod +x demo/run_demo.sh 2>/dev/null || true
+	@PATH="$$PWD:$$PATH" bash demo/run_demo.sh
+
+# Быстрая проверка — компилятор работает?
+check:
+	@chmod +x compiler 2>/dev/null || true
+	./compiler --help || ./compiler lex --input demo/showcase.src > /dev/null
+	@echo "Компилятор работает!"

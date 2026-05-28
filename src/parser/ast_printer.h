@@ -32,10 +32,14 @@ public:
         }
         out_ << "]\n";
         ind();
-        out_ << "Body [line " << node.body->line << "]:\n";
-        indent_++;
-        node.body->accept(*this);
-        indent_--;
+        if (node.body) {
+            out_ << "Body [line " << node.body->line << "]:\n";
+            indent_++;
+            node.body->accept(*this);
+            indent_--;
+        } else {
+            out_ << "Body: <extern>\n";
+        }
         indent_--;
     }
 
@@ -330,9 +334,11 @@ public:
         out_ << "  n" << id << " [label=\"FunctionDecl: " << node.name
              << " -> " << node.return_type
              << "\", style=filled, fillcolor=\"#ffe0e0\"];\n";
-        int body_id = peek_id();
-        node.body->accept(*this);
-        out_ << "  n" << id << " -> n" << body_id << ";\n";
+        if (node.body) {
+            int body_id = peek_id();
+            node.body->accept(*this);
+            out_ << "  n" << id << " -> n" << body_id << ";\n";
+        }
     }
 
     void visit(StructDeclNode& node) override {
@@ -554,7 +560,11 @@ public:
                  << "\",\"name\":\"" << node.parameters[i].name << "\"}";
         }
         out_ << "],\"body\":";
-        node.body->accept(*this);
+        if (node.body) {
+            node.body->accept(*this);
+        } else {
+            out_ << "null";
+        }
         out_ << "}";
     }
 

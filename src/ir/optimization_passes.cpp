@@ -34,9 +34,13 @@ bool FunctionInliner::should_inline(const IRFunction& func) const {
 
 void FunctionInliner::inline_calls(IRFunction& caller) {
     std::vector<BasicBlock> new_blocks;
+    std::unordered_map<std::string, std::string> split_block_tail;
+
     for (size_t b_idx = 0; b_idx < caller.blocks.size(); ++b_idx) {
         auto& block = caller.blocks[b_idx];
         std::vector<IRInstruction> current_instrs;
+        std::string original_label = block.label;
+        std::string current_tail = original_label;
         
         for (size_t i = 0; i < block.instructions.size(); ++i) {
             auto& instr = block.instructions[i];
@@ -73,13 +77,18 @@ void FunctionInliner::inline_calls(IRFunction& caller) {
                     for (size_t cb = 0; cb < callee->blocks.size(); ++cb) {
                         BasicBlock inlined_block = callee->blocks[cb];
                         inlined_block.label += suffix;
-                        
+                        std::vector<IRInstruction> new_instrs;
                         for (auto& cinstr : inlined_block.instructions) {
                             if (cinstr.opcode == IROpcode::JUMP || cinstr.opcode == IROpcode::JUMP_IF || cinstr.opcode == IROpcode::JUMP_IF_NOT) {
                                 cinstr.dest.name += suffix;
                             }
                             if (cinstr.opcode == IROpcode::LABEL) {
                                 cinstr.dest.name += suffix;
+                            }
+                            if (cinstr.opcode == IROpcode::PHI) {
+                                for (size_t p = 1; p < cinstr.srcs.size(); p += 2) {
+                                    cinstr.srcs[p].name += suffix;
+                                }
                             }
                             
                             auto rename_op = [&](Operand& op) {
@@ -103,19 +112,23 @@ void FunctionInliner::inline_calls(IRFunction& caller) {
                             
                             if (cinstr.opcode == IROpcode::RETURN) {
                                 if (!instr.dest.is_none() && !cinstr.srcs.empty()) {
-                                    cinstr = IRInstruction::make_move(instr.dest, cinstr.srcs[0]);
-                                    inlined_block.instructions.push_back(IRInstruction::make_jump(after_label));
+                                    new_instrs.push_back(IRInstruction::make_move(instr.dest, cinstr.srcs[0]));
+                                    new_instrs.push_back(IRInstruction::make_jump(after_label));
                                 } else {
-                                    cinstr = IRInstruction::make_jump(after_label);
+                                    new_instrs.push_back(IRInstruction::make_jump(after_label));
                                 }
+                            } else {
+                                new_instrs.push_back(cinstr);
                             }
                         }
+                        inlined_block.instructions = std::move(new_instrs);
                         new_blocks.push_back(inlined_block);
                     }
                     
                     // 3. Create the "after" block
                     current_instrs.clear();
                     block.label = after_label;
+                    current_tail = after_label;
                     functions_inlined_++;
                 } else {
                     current_instrs.push_back(instr);
@@ -125,11 +138,32 @@ void FunctionInliner::inline_calls(IRFunction& caller) {
             }
         }
         
+        if (current_tail != original_label) {
+            split_block_tail[original_label] = current_tail;
+        }
+
         BasicBlock bb_final = block;
         bb_final.instructions = current_instrs;
         if (!current_instrs.empty() || bb_final.label.find("L_after_inline") != std::string::npos) {
             new_blocks.push_back(bb_final);
         }
     }
+
+    // Update PHI predecessors for any split blocks
+    if (!split_block_tail.empty()) {
+        for (auto& new_bb : new_blocks) {
+            for (auto& instr : new_bb.instructions) {
+                if (instr.opcode == IROpcode::PHI) {
+                    for (size_t i = 1; i < instr.srcs.size(); i += 2) {
+                        auto it = split_block_tail.find(instr.srcs[i].name);
+                        if (it != split_block_tail.end()) {
+                            instr.srcs[i].name = it->second;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     caller.blocks = new_blocks;
 }

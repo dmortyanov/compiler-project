@@ -225,6 +225,11 @@ void IRGenerator::visit(FunctionDeclNode& node) {
     for (const auto& p : node.parameters)
         func.params.push_back({p.name, p.type_name});
 
+    if (!node.body) {
+        cur_func_ = nullptr;
+        return;
+    }
+
     enter_scope();
     start_block("entry");
 
@@ -235,8 +240,7 @@ void IRGenerator::visit(FunctionDeclNode& node) {
         bind_variable(p.name, param_temp);
     }
 
-    if (node.body)
-        node.body->accept(*this);
+    node.body->accept(*this);
 
     if (cur_block_ && !cur_block_->has_terminator()) {
         if (node.return_type == "void")

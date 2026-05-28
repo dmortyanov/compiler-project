@@ -214,9 +214,14 @@ void PeepholeOptimizer::eliminate_dead_code(IRFunction& func) {
                 if (!instr.srcs.empty() && instr.srcs[0].kind == OperandKind::Temp)
                     used.insert(instr.srcs[0].name);
             }
+            // For STORE and STORE_ELEM, dest is actually a pointer that is USED
+            if (instr.opcode == IROpcode::STORE || instr.opcode == IROpcode::STORE_ELEM) {
+                if (instr.dest.kind == OperandKind::Temp)
+                    used.insert(instr.dest.name);
+            }
         }
     }
-
+    
     // Remove instructions whose dest temp is never used
     for (auto& block : func.blocks) {
         auto it = block.instructions.begin();
@@ -226,6 +231,7 @@ void PeepholeOptimizer::eliminate_dead_code(IRFunction& func) {
                 used.find(it->dest.name) == used.end() &&
                 it->opcode != IROpcode::CALL &&
                 it->opcode != IROpcode::STORE &&
+                it->opcode != IROpcode::STORE_ELEM &&
                 !is_terminator(it->opcode)) {
                 add_entry(func.name, block.label, 0,
                          "dead code: removed unused " + it->dest.name);
@@ -243,17 +249,16 @@ void PeepholeOptimizer::eliminate_dead_code(IRFunction& func) {
 // chain_jumps — JUMP L1; L1: JUMP L2 → JUMP L2
 // ---------------------------------------------------------------
 void PeepholeOptimizer::chain_jumps(IRFunction& func) {
-    // Build map: label → target (if the block only contains a JUMP)
     std::unordered_map<std::string, std::string> redirect;
     for (const auto& block : func.blocks) {
-        // Block that only has a single JUMP (possibly after a LABEL)
         int real_count = 0;
         std::string jump_target;
         for (const auto& instr : block.instructions) {
-            if (instr.opcode == IROpcode::LABEL) continue;
-            real_count++;
-            if (instr.opcode == IROpcode::JUMP) {
-                jump_target = instr.dest.name;
+            if (instr.opcode != IROpcode::LABEL && instr.opcode != IROpcode::NOP) {
+                real_count++;
+                if (instr.opcode == IROpcode::JUMP) {
+                    jump_target = instr.dest.name;
+                }
             }
         }
         if (real_count == 1 && !jump_target.empty()) {
@@ -262,14 +267,16 @@ void PeepholeOptimizer::chain_jumps(IRFunction& func) {
     }
 
     // Follow chains
-    auto resolve = [&](const std::string& lbl) -> std::string {
+    auto resolve_and_get_last_pred = [&](const std::string& lbl) -> std::pair<std::string, std::string> {
         std::string cur = lbl;
+        std::string pred = lbl;
         std::set<std::string> visited;
         while (redirect.count(cur) && !visited.count(cur)) {
             visited.insert(cur);
+            pred = cur;
             cur = redirect[cur];
         }
-        return cur;
+        return {cur, pred};
     };
 
     // Rewrite jump targets
@@ -279,13 +286,32 @@ void PeepholeOptimizer::chain_jumps(IRFunction& func) {
                 instr.opcode == IROpcode::JUMP_IF ||
                 instr.opcode == IROpcode::JUMP_IF_NOT) {
                 std::string old_target = instr.dest.name;
-                std::string new_target = resolve(old_target);
+                auto [new_target, pred] = resolve_and_get_last_pred(old_target);
                 if (new_target != old_target) {
                     instr.dest = Operand::label(new_target);
                     metrics_.jumps_chained++;
                     metrics_.instructions_modified++;
                     add_entry(func.name, block.label, 0,
                              "jump chain: " + old_target + " → " + new_target);
+                             
+                    // Update PHI instructions in new_target
+                    for (auto& target_block : func.blocks) {
+                        if (target_block.label == new_target) {
+                            for (auto& target_instr : target_block.instructions) {
+                                if (target_instr.opcode == IROpcode::PHI) {
+                                    // Check if the original predecessor (or the last block in the chain) is in the PHI sources
+                                    for (size_t i = 1; i < target_instr.srcs.size(); i += 2) {
+                                        if (target_instr.srcs[i].name == pred) {
+                                            target_instr.srcs.push_back(target_instr.srcs[i - 1]); // The value
+                                            target_instr.srcs.push_back(Operand::label(block.label)); // The new predecessor
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                    }
                 }
             }
         }
